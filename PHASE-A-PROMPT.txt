@@ -1,0 +1,61 @@
+Build Phase A of the Texan Flue Management System.
+
+READ FIRST, in this order: CODEX-BRIEF.md (build order and how the work splits),
+DECISIONS.md (twelve architecture decisions already settled), schema.prisma (the
+complete domain model, 38 models - use it as given), and
+TEXAN_FLUE_CODEX_MASTER_SPEC.md (the full product spec).
+
+Do not redesign the schema. If you need a field it lacks, add it and say so in your
+report. Do not restructure a relation without flagging it, because the immutable
+document-snapshot layer in Phase B depends on the current shape.
+
+STACK
+Next.js App Router, TypeScript, Tailwind, shadcn/ui. Prisma against PostgreSQL with
+real migrations (not db push) and a seed script. Auth.js with hashed passwords and
+secure sessions. Zod for validation at every boundary. Vitest for unit tests,
+Playwright for end-to-end.
+
+PHASE A SCOPE
+1. Project scaffold, .env.example with no real secrets, docker-compose for local
+   PostgreSQL, README with the exact commands to run it, lint and typecheck scripts.
+2. Prisma migration from schema.prisma. Seed: one Organization (Texan Flue Chimney
+   Service, 2781 N Carroll Ave, Dallas TX 75204, 469-771-7000), its
+   OrganizationSettings with tax and fees DISABLED, one ADMIN, one OFFICE and one
+   TECHNICIAN user, and the service library from section 10 of the master spec.
+   Every seeded record clearly marked as demo data except the organization itself.
+3. Auth: login, logout, password reset flow, session handling. The three roles from
+   ADR-010, enforced SERVER-SIDE on every mutation and every read of a scoped
+   resource. Client-side hiding is cosmetic and does not count.
+4. Customers and Properties: list, search by name/phone/email/address, create, edit,
+   soft delete. A customer has many properties. Include the access notes, gate code
+   and chimney detail fields.
+5. Jobs: create against a customer and property, status transitions through the
+   JobStatus enum, technician assignment, appointments.
+6. Service library: admin-editable catalog with price versions. Seed it from the
+   spec's list. NO gas valve repair and NO gas log installation - the company does
+   not offer them. Any item flagged companyDefinedTerm must carry its own scope text.
+7. File upload: private storage only, signed expiring URLs for download, never a
+   public URL. Validate MIME type, extension and size on the server, not just the
+   client. Reject oversized and disallowed files with a clear error.
+8. Dashboard reading real counts from the database. No placeholder metrics.
+
+PHASE A IS DONE WHEN
+- An OFFICE user can create a customer, add a property to them, and open a job
+  against that property.
+- A TECHNICIAN requesting a job they are not assigned to receives 404, not 403.
+- A TECHNICIAN cannot reach any admin settings route, server-side.
+- An oversized or disallowed upload is rejected server-side.
+- lint, typecheck and the test suite all pass.
+
+CONSTRAINTS THAT DO NOT CHANGE
+- Money is integer cents everywhere. No floats.
+- Tax and fees are explicit fields, disabled by default.
+- The only claim the company makes is "Fully Insured". Never licensed, certified,
+  CSIA, code-compliant or guaranteed - in UI copy, seed data or anywhere else.
+- Company focus is wood-burning chimney work and dryer vents.
+
+REPORT BACK WITH
+The exact commands to run it locally, what you actually tested versus what you only
+wrote, and an explicit list of what you left unfinished. Do not call Phase A done
+with failing tests. Do not describe a stub as working - Claude reads the code, and a
+stub labelled as a stub costs nothing while a stub labelled as finished costs trust.
