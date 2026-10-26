@@ -1,0 +1,1013 @@
+// Texan Flue Management System ‚Äî domain model
+// Money is ALWAYS integer cents. Never a float, never a Decimal string in app code.
+// Issued documents are immutable: editing one creates a new DocumentVersion.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ org & identity
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String // "Texan Flue Chimney Service"
+  brandName String // "Texan Flue Chimney"
+  phone     String
+  email     String
+  website   String
+  addrLine1 String
+  addrLine2 String?
+  city      String
+  state     String
+  postal    String
+  logoId    String?
+  logo      FileAsset? @relation("OrgLogo", fields: [logoId], references: [id])
+  settings  OrganizationSettings?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users      User[]
+  customers  Customer[]
+  services    ServiceCatalogItem[]
+  documents   Document[]
+  jobs        Job[]
+  counters    SequenceCounter[]
+  templates   TemplateVersion[]
+  auditLogs   AuditLog[]
+}
+
+model OrganizationSettings {
+  id             String  @id @default(cuid())
+  organizationId String  @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Tax and fees are OFF by default and are explicit, never inferred.
+  // A zero rate is a deliberate configuration, not an assumption about the law.
+  taxEnabled     Boolean @default(false)
+  taxLabel       String  @default("Tax")
+  taxRateBasisPoints Int @default(0) // 825 = 8.25%
+  feeEnabled     Boolean @default(false)
+  feeLabel       String  @default("Service Fee")
+  feeRateBasisPoints Int @default(0)
+
+  // Signature policy
+  estimateSignatureRequired Boolean @default(false)
+  workAuthRequired          Boolean @default(false)
+  shareTokenTtlHours        Int     @default(336) // 14 days
+
+  estimateValidDays Int @default(30)
+  invoiceNetDays    Int @default(14)
+
+  // AI is disabled until a key is configured. Never assume it is on.
+  aiEnabled   Boolean @default(false)
+  aiProvider  AiProvider?
+  aiModel     String?
+  aiMonthlyCentsCap Int @default(5000)
+
+  defaultTerms      String? @db.Text
+  defaultExclusions String? @db.Text
+
+  updatedAt DateTime @updatedAt
+}
+
+enum AiProvider {
+  ANTHROPIC
+  OPENAI
+}
+
+enum UserRole {
+  ADMIN
+  OFFICE
+  TECHNICIAN
+}
+
+model User {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  email          String   @unique
+  name           String
+  phone          String?
+  passwordHash   String
+  role           UserRole
+  active         Boolean  @default(true)
+  mfaSecret      String?
+  lastLoginAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  assignments    TechnicianAssignment[]
+  inspections    Inspection[]
+  activityLogs   ActivityLog[]
+  auditLogs      AuditLog[]
+  payments       PaymentRecord[]
+  sessions       Session[]
+  resetTokens    PasswordResetToken[]
+
+  @@index([organizationId, role])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  userAgent String?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+}
+
+// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ customers
+
+model Customer {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String
+  companyName    String?
+  phone          String?
+  email          String?
+  billLine1      String?
+  billLine2      String?
+  billCity       String?
+  billState      String?
+  billPostal     String?
+  preferredLang  String   @default("en")
+  notes          String?  @db.Text
+  tags           String[]
+  mergedIntoId   String?
+  mergedInto     Customer?  @relation("CustomerMerge", fields: [mergedIntoId], references: [id])
+  mergedFrom     Customer[] @relation("CustomerMerge")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  properties Property[]
+  contacts   Contact[]
+  jobs       Job[]
+  estimates  Estimate[]
+  invoices   Invoice[]
+  inspections Inspection[]
+
+  @@index([organizationId, name])
+  @@index([organizationId, phone])
+  @@index([organizationId, email])
+}
+
+model Contact {
+  id         String  @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  name       String
+  role       String?
+  phone      String?
+  email      String?
+  isPrimary  Boolean @default(false)
+}
+
+model Property {
+  id         String  @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  label      String?
+  line1      String
+  line2      String?
+  city       String
+  state      String
+  postal     String
+  accessNotes    String? @db.Text
+  gateCode       String?
+  chimneyNotes   String? @db.Text
+  applianceType  ApplianceType?
+  storeys        Int?
+  roofType       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  deletedAt  DateTime?
+
+  jobs        Job[]
+  estimates   Estimate[]
+  invoices    Invoice[]
+  inspections Inspection[]
+  photos      FileAsset[] @relation("PropertyPhotos")
+
+  @@index([customerId])
+  @@index([postal])
+}
+
+// Company focus is wood-burning chimney and dryer vents.
+// Gas appliances may be RECORDED as present but are not offered as services.
+enum ApplianceType {
+  WOOD_FIREPLACE
+  WOOD_STOVE
+  INSERT
+  PREFAB_FACTORY_BUILT
+  DRYER_VENT
+  OTHER
+  UNKNOWN
+}
+
+// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ jobs
+
+enum JobStatus {
+  LEAD
+  SCHEDULED
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+model Job {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  number         String   @unique
+  customerId     String
+  customer       Customer @relation(fields: [customerId], references: [id])
+  propertyId     String
+  property       Property @relation(fields: [propertyId], references: [id])
+  status         JobStatus @default(LEAD)
+  title          String
+  scope          String?  @db.Text
+  accessNotes    String?  @db.Text
+  safetyNotes    String?  @db.Text
+  internalNotes  String?  @db.Text
+  completedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  appointments  Appointment[]
+  assignments   TechnicianAssignment[]
+  estimates     Estimate[]
+  invoices      Invoice[]
+  inspections   Inspection[]
+  workOrders    WorkOrder[]
+  photos        FileAsset[] @relation("JobPhotos")
+
+  @@index([organizationId, status])
+  @@index([customerId])
+}
+
+model Appointment {
+  id        String   @id @default(cuid())
+  jobId     String
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  startsAt  DateTime
+  endsAt    DateTime
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([jobId, startsAt])
+}
+
+model TechnicianAssignment {
+  id         String   @id @default(cuid())
+  jobId      String
+  job        Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  assignedAt DateTime @default(now())
+
+  @@unique([jobId, userId])
+  @@index([userId])
+}
+
+// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ service library
+
+model ServiceCatalogItem {
+  id             String  @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  slug           String
+  title          String
+  category       String
+  // The approved wording. AI rewrites start from this and never replace it silently.
+  description    String  @db.Text
+  scopeSteps     String[]
+  materials      String[]
+  exclusions     String[]
+  unit           String  @default("each")
+  active         Boolean @default(true)
+  // A company-defined term such as "Level 3 Cleaning" MUST carry its own scope text
+  // and must never be presented as an NFPA inspection level.
+  companyDefinedTerm Boolean @default(false)
+  sortOrder      Int     @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  priceVersions ServicePriceVersion[]
+  photos        FileAsset[] @relation("ServicePhotos")
+
+  @@unique([organizationId, slug])
+  @@index([organizationId, category])
+}
+
+model ServicePriceVersion {
+  id         String   @id @default(cuid())
+  serviceId  String
+  service    ServiceCatalogItem @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  unitPriceCents Int
+  effectiveFrom  DateTime @default(now())
+  effectiveTo    DateTime?
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@index([serviceId, effectiveFrom])
+}
+
+// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ documents (shared spine)
+
+enum DocumentType {
+  ESTIMATE
+  INVOICE
+  INSPECTION
+  DRYER_VENT_REPORT
+  RECEIPT
+  WORK_ORDER
+  WORK_AUTHORIZATION
+  CHANGE_ORDER
+  COMPLETION_ACK
+  STATEMENT
+  INSURANCE_SCOPE
+  APPROVAL_CERTIFICATE
+}
+
+// One row per issuable document, whatever its kind. Estimates, invoices and
+// inspections each point at their own Document so sharing, signing, PDF storage
+// and audit work the same way for all of them.
+model Document {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  type           DocumentType
+  number         String
+  currentVersion Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  versions   DocumentVersion[]
+  shareTokens DocumentShareToken[]
+  emails     EmailDelivery[]
+  estimate   Estimate?
+  invoice    Invoice?
+  inspection Inspection?
+  workOrder  WorkOrder?
+  receipt    Receipt?
+
+  @@unique([organizationId, type, number])
+  @@index([organizationId, type])
+}
+
+// The immutable snapshot. Once `issuedAt` is set nothing in this row may change.
+// It carries its own copy of every line, price, term and the template revision
+// used, so a signed PDF can always be reproduced exactly.
+model DocumentVersion {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  version    Int
+  // Full denormalised payload of the document at issue time.
+  snapshot   Json
+  // sha256 of the rendered PDF bytes. Recorded at signature time.
+  contentHash String?
+  templateVersionId String?
+  templateVersion   TemplateVersion? @relation(fields: [templateVersionId], references: [id])
+  pdfFileId  String?
+  pdfFile    FileAsset? @relation("VersionPdf", fields: [pdfFileId], references: [id])
+  issuedAt   DateTime?
+  supersededAt DateTime?
+  createdAt  DateTime @default(now())
+
+  signatures Signature[]
+  consents   ConsentRecord[]
+
+  @@unique([documentId, version])
+  @@index([documentId])
+}
+
+model TemplateVersion {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  type           DocumentType
+  version        Int
+  // Controlled template source. NOT arbitrary user HTML ‚Äî rendered through a
+  // allow-listed component set, see docs/ADR-004.
+  source         String   @db.Text
+  active         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  documentVersions DocumentVersion[]
+
+  @@unique([organizationId, type, version])
+}
+
+model DocumentShareToken {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  // Only the hash is stored. The raw token exists once, in the link we send.
+  tokenHash  String   @unique
+  version    Int
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  firstViewedAt DateTime?
+  lastViewedAt  DateTime?
+  viewCount  Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([documentId])
+}
+
+// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ estimates
+
+enum EstimateStatus {
+  DRAFT
+  READY
+  SENT
+  VIEWED
+  APPROVED
+  DECLINED
+  EXPIRED
+  SUPERSEDED
+}
+
+model Estimate {
+  id             String   @id @default(cuid())
+  documentId     String   @unique
+  document       Document @relation(fields: [documentId], references: [id])
+  customerId     String
+  customer       Customer @relation(fields: [customerId], references: [id])
+  propertyId     String
+  property       Property @relation(fields: [propertyId], references: [id])
+  jobId          String?
+  job            Job?     @relation(fields: [jobId], references: [id])
+  status         EstimateStatus @default(DRAFT)
+
+  subtotalCents  Int @default(0)
+  discountCents  Int @default(0)
+  taxCents       Int @default(0)
+  feeCents       Int @default(0)
+  depositRequestCents Int @default(0)
+  totalCents     Int @default(0)
+
+  terms          String? @db.Text
+  exclusions     String? @db.Text
+  assumptions    String? @db.Text
+  warrantyTerms  String? @db.Text
+  customerNote   String? @db.Text
+  internalNote   String? @db.Text
+
+  validUntil     DateTime?
+  sentAt         DateTime?
+  approvedAt     DateTime?
+  declinedAt     DateTime?
+  declineReason  String? @db.Text
+  supersededById String? @unique
+  supersededBy   Estimate? @relation("EstimateRevision", fields: [supersededById], references: [id])
+  supersedes     Estimate? @relation("EstimateRevision")
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  lineItems EstimateLineItem[]
+  invoices  Invoice[]
+  aiRequests AIRequest[]
+
+  @@index([customerId, status])
+  @@index([status])
+}
+
+model EstimateLineItem {
+  id         String   @id @default(cuid())
+  estimateId String
+  estimate   Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  serviceId  String?
+  service    ServiceCatalogItem? @relation(fields: [serviceId], references: [id])
+  sortOrder  Int      @default(0)
+  title      String
+  description String? @db.Text
+  quantity   Decimal  @db.Decimal(10, 2) @default(1)
+  unit       String   @default("each")
+  unitPriceCents Int
+  discountCents  Int  @default(0)
+  taxable    Boolean  @default(false)
+  lineTotalCents Int
+  note       String?  @db.Text
+  // Set when this line came from an AI extraction, so the UI can flag it for review.
+  aiExtractionId String?
+  aiExtraction   AIExtraction? @relation(fields: [aiExtractionId], references: [id])
+
+  photos FileAsset[] @relation("LineItemPhotos")
+
+  @@index([estimateId, sortOrder])
+}
+
+// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ invoices
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  SENT
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  VOID
+}
+
+model Invoice {
+  id             String   @id @default(cuid())
+  documentId     String   @unique
+  document       Document @relation(fields: [documentId], references: [id])
+  customerId     String
+  customer       Customer @relation(fields: [customerId], references: [id])
+  propertyId     String
+  property       Property @relation(fields: [propertyId], references: [id])
+  jobId          String?
+  job            Job?     @relation(fields: [jobId], references: [id])
+  sourceEstimateId String?
+  sourceEstimate   Estimate? @relation(fields: [sourceEstimateId], references: [id])
+  status         InvoiceStatus @default(DRAFT)
+
+  issueDate      DateTime?
+  dueDate        DateTime?
+  subtotalCents  Int @default(0)
+  discountCents  Int @default(0)
+  taxCents       Int @default(0)
+  feeCents       Int @default(0)
+  totalCents     Int @default(0)
+  // Derived from PaymentRecords, never typed in by hand.
+  amountPaidCents Int @default(0)
+  balanceCents    Int @default(0)
+
+  paymentInstructions String? @db.Text
+  notes          String? @db.Text
+  voidedAt       DateTime?
+  voidReason     String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  lineItems InvoiceLineItem[]
+  payments  PaymentRecord[]
+  receipts  Receipt[]
+
+  @@index([customerId, status])
+  @@index([status, dueDate])
+}
+
+model InvoiceLineItem {
+  id         String   @id @default(cuid())
+  invoiceId  String
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  sortOrder  Int      @default(0)
+  title      String
+  description String? @db.Text
+  quantity   Decimal  @db.Decimal(10, 2) @default(1)
+  unit       String   @default("each")
+  unitPriceCents Int
+  discountCents  Int  @default(0)
+  taxable    Boolean  @default(false)
+  lineTotalCents Int
+
+  @@index([invoiceId, sortOrder])
+}
+
+// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ payments
+
+// No online payment processing in v1. Every row here records money that
+// arrived somewhere else and is being written down after the fact.
+enum PaymentMethod {
+  CASH
+  CHECK
+  ZELLE
+  BANK_TRANSFER
+  OTHER
+}
+
+model PaymentRecord {
+  id         String   @id @default(cuid())
+  invoiceId  String
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id])
+  amountCents Int
+  method     PaymentMethod
+  paidAt     DateTime
+  reference  String?
+  note       String?  @db.Text
+  recordedById String
+  recordedBy   User   @relation(fields: [recordedById], references: [id])
+  // Reversal leaves the original row intact and adds an audit trail.
+  reversedAt DateTime?
+  reversedReason String?
+  createdAt  DateTime @default(now())
+
+  receipt Receipt?
+
+  @@index([invoiceId])
+}
+
+// A receipt may only exist for a PaymentRecord that is not reversed.
+model Receipt {
+  id         String   @id @default(cuid())
+  documentId String   @unique
+  document   Document @relation(fields: [documentId], references: [id])
+  paymentId  String   @unique
+  payment    PaymentRecord @relation(fields: [paymentId], references: [id])
+  invoiceId  String
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id])
+  balanceAfterCents Int
+  createdAt  DateTime @default(now())
+}
+
+// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ inspections
+
+enum InspectionStatus {
+  DRAFT
+  TECH_SIGNED
+  FINALIZED
+  SHARED
+}
+
+enum FindingStatus {
+  PASS
+  FAIL
+  NA
+  NOT_INSPECTED
+}
+
+enum Severity {
+  INFO
+  MONITOR
+  REPAIR_RECOMMENDED
+  URGENT
+}
+
+enum InspectionKind {
+  CHIMNEY
+  DRYER_VENT
+}
+
+model Inspection {
+  id             String   @id @default(cuid())
+  documentId     String   @unique
+  document       Document @relation(fields: [documentId], references: [id])
+  customerId     String
+  customer       Customer @relation(fields: [customerId], references: [id])
+  propertyId     String
+  property       Property @relation(fields: [propertyId], references: [id])
+  jobId          String?
+  job            Job?     @relation(fields: [jobId], references: [id])
+  technicianId   String
+  technician     User     @relation(fields: [technicianId], references: [id])
+  kind           InspectionKind @default(CHIMNEY)
+  status         InspectionStatus @default(DRAFT)
+
+  performedAt    DateTime
+  applianceType  ApplianceType?
+  weather        String?
+  // What could NOT be examined. This is not optional padding ‚Äî it is the
+  // difference between an honest report and an overclaim.
+  limitations    String?  @db.Text
+  summary        String?  @db.Text
+  recommendations String? @db.Text
+
+  techSignedAt   DateTime?
+  finalizedAt    DateTime?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  sections InspectionSection[]
+
+  @@index([customerId])
+  @@index([technicianId, performedAt])
+}
+
+model InspectionSection {
+  id           String @id @default(cuid())
+  inspectionId String
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  key          String // firebox, damper, smoke_chamber, flue_liner, crown, flashing, ‚Ä¶
+  title        String
+  sortOrder    Int    @default(0)
+
+  findings InspectionFinding[]
+
+  @@index([inspectionId, sortOrder])
+}
+
+model InspectionFinding {
+  id        String @id @default(cuid())
+  sectionId String
+  section   InspectionSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  key       String
+  title     String
+  status    FindingStatus @default(NOT_INSPECTED)
+  severity  Severity?
+  observation    String? @db.Text
+  recommendation String? @db.Text
+  // True when the wording was drafted by AI from technician notes/photos.
+  // The PDF does not say so, but the record keeps it for audit.
+  aiDrafted Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  photos InspectionPhoto[]
+
+  @@index([sectionId, sortOrder])
+}
+
+model InspectionPhoto {
+  id        String @id @default(cuid())
+  findingId String
+  finding   InspectionFinding @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  fileId    String
+  file      FileAsset @relation(fields: [fileId], references: [id])
+  caption   String?
+  // before/after pairing
+  pairKey   String?
+  phase     PhotoPhase?
+  sortOrder Int @default(0)
+
+  @@index([findingId, sortOrder])
+}
+
+enum PhotoPhase {
+  BEFORE
+  AFTER
+}
+
+// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ work orders
+
+enum WorkOrderStatus {
+  DRAFT
+  AUTHORIZED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model WorkOrder {
+  id         String @id @default(cuid())
+  documentId String @unique
+  document   Document @relation(fields: [documentId], references: [id])
+  jobId      String
+  job        Job    @relation(fields: [jobId], references: [id])
+  status     WorkOrderStatus @default(DRAFT)
+  scope      String  @db.Text
+  materials  String[]
+  safetyNotes String? @db.Text
+  authorizedAt DateTime?
+  completedAt  DateTime?
+  // Proposed work and work actually performed are separate fields on purpose.
+  workPerformed String? @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  changeOrders ChangeOrder[]
+
+  @@index([jobId])
+}
+
+model ChangeOrder {
+  id          String @id @default(cuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  description String @db.Text
+  deltaCents  Int
+  approvedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([workOrderId])
+}
+
+// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ signing
+
+model Signature {
+  id         String @id @default(cuid())
+  documentVersionId String
+  documentVersion   DocumentVersion @relation(fields: [documentVersionId], references: [id])
+  signerName String
+  signerEmail String?
+  signerPhone String?
+  // Drawn signature as a PNG in private storage, or the typed name.
+  imageFileId String?
+  imageFile   FileAsset? @relation("SignatureImage", fields: [imageFileId], references: [id])
+  typedName  String?
+  signedAt   DateTime @default(now())
+  // Recorded for the audit trail. IP alone is NOT identity verification.
+  userAgent  String?
+  ip         String?
+  shareTokenId String?
+  action     SignatureAction
+
+  @@index([documentVersionId])
+}
+
+enum SignatureAction {
+  APPROVE
+  DECLINE
+  ACKNOWLEDGE
+  WORK_AUTHORIZE
+}
+
+model ConsentRecord {
+  id         String @id @default(cuid())
+  documentVersionId String
+  documentVersion   DocumentVersion @relation(fields: [documentVersionId], references: [id])
+  consentTextVersion String
+  consentText        String @db.Text
+  agreedAt   DateTime @default(now())
+  signerName String
+  ip         String?
+  userAgent  String?
+
+  @@index([documentVersionId])
+}
+
+// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ files & email
+
+model FileAsset {
+  id          String @id @default(cuid())
+  // Key in private object storage. Never a public URL.
+  storageKey  String @unique
+  filename    String
+  mimeType    String
+  sizeBytes   Int
+  sha256      String?
+  width       Int?
+  height      Int?
+  uploadedById String?
+  createdAt   DateTime @default(now())
+  deletedAt   DateTime?
+
+  orgLogos        Organization[]    @relation("OrgLogo")
+  propertyPhotos  Property[]        @relation("PropertyPhotos")
+  jobPhotos       Job[]             @relation("JobPhotos")
+  servicePhotos   ServiceCatalogItem[] @relation("ServicePhotos")
+  lineItemPhotos  EstimateLineItem[]   @relation("LineItemPhotos")
+  inspectionPhotos InspectionPhoto[]
+  signatureImages Signature[]       @relation("SignatureImage")
+  versionPdfs     DocumentVersion[] @relation("VersionPdf")
+  aiRequests      AIRequest[]
+
+  @@index([sha256])
+}
+
+enum EmailStatus {
+  QUEUED
+  SENT
+  FAILED
+  BOUNCED
+}
+
+model EmailDelivery {
+  id         String @id @default(cuid())
+  documentId String?
+  document   Document? @relation(fields: [documentId], references: [id])
+  toEmail    String
+  subject    String
+  status     EmailStatus @default(QUEUED)
+  providerId String?
+  error      String? @db.Text
+  sentAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([documentId])
+}
+
+// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ AI
+
+enum AIRequestKind {
+  EXTRACT_DOCUMENT
+  DRAFT_SCOPE
+  DRAFT_FINDING
+  REWRITE
+  TRANSLATE
+  SUGGEST_FROM_PHOTO
+}
+
+enum AIRequestStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+model AIRequest {
+  id         String @id @default(cuid())
+  kind       AIRequestKind
+  status     AIRequestStatus @default(PENDING)
+  provider   AiProvider?
+  model      String?
+  // The user's own instruction, which may be Hebrew.
+  instruction String? @db.Text
+  sourceFileId String?
+  sourceFile   FileAsset? @relation(fields: [sourceFileId], references: [id])
+  estimateId String?
+  estimate   Estimate? @relation(fields: [estimateId], references: [id])
+  promptTokens Int?
+  outputTokens Int?
+  costCents  Int?
+  error      String? @db.Text
+  requestedById String?
+  createdAt  DateTime @default(now())
+  completedAt DateTime?
+
+  extractions AIExtraction[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// The structured result. Kept separate from whatever the user later approved,
+// so an extracted fact and an edited value are never confused.
+model AIExtraction {
+  id        String @id @default(cuid())
+  requestId String
+  request   AIRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  // Schema-validated payload: customer_name, line_items[], totals, warnings‚Ä¶
+  payload   Json
+  // 0-100. Anything under the review threshold is highlighted in the UI.
+  confidence Int?
+  warnings  String[]
+  unknownFields String[]
+  acceptedAt DateTime?
+  acceptedById String?
+
+  lineItems EstimateLineItem[]
+
+  @@index([requestId])
+}
+
+// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ bookkeeping
+
+model SequenceCounter {
+  id             String @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  type           DocumentType
+  year           Int
+  // Incremented inside a transaction with SELECT ‚Ä¶ FOR UPDATE.
+  value          Int    @default(0)
+
+  @@unique([organizationId, type, year])
+}
+
+model ActivityLog {
+  id        String @id @default(cuid())
+  userId    String?
+  user      User?  @relation(fields: [userId], references: [id])
+  entity    String
+  entityId  String
+  action    String
+  summary   String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+// Append-only. No application path may update or delete a row here.
+model AuditLog {
+  id             String @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  userId         String?
+  user           User?  @relation(fields: [userId], references: [id])
+  entity         String
+  entityId       String
+  action         String
+  before         Json?
+  after          Json?
+  ip             String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([entity, entityId])
+}
