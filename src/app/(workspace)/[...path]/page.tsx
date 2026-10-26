@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EstimatesPage } from "@/components/estimates-page";
 import { notFound, redirect, forbidden } from "next/navigation";
 import { actor, admin, office, visibleJob } from "@/lib/access";
 import * as domain from "@/lib/domain";
@@ -93,6 +94,11 @@ async function renderPage({
   const query = await searchParams;
   const canEdit = a.role !== "TECHNICIAN";
   if (path.length > 3) notFound();
+  if (kind === "estimates" && !sub) return EstimatesPage({ a, id });
+  if (kind === "settings" && id === "templates" && !sub) {
+    admin(a);
+    return EstimatesPage({ a, id: "templates" });
+  }
   if (kind === "settings") {
     admin(a);
     if (id !== "company" || sub) notFound();
@@ -105,6 +111,9 @@ async function renderPage({
         <Header title="Company settings" />
         <div className="panel">
           <h2>{org.name}</h2>
+          <Button asChild variant="outline">
+            <Link href="/settings/templates">Document templates</Link>
+          </Button>
           <p>
             {org.addrLine1}, {org.city}, {org.state} {org.postal}
             <br />

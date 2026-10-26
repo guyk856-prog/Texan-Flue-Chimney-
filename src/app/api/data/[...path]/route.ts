@@ -76,6 +76,12 @@ async function handle(
       if (kind === "files" && !action) {
         admin(a);
         await visibleFile(a, id);
+        if (
+          await db.documentVersion.findFirst({
+            where: { pdfFileId: id, issuedAt: { not: null } },
+          })
+        )
+          throw new HttpError(409, "Issued PDFs cannot be archived.");
         await db.$transaction([
           db.fileAsset.update({
             where: { id },

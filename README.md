@@ -1,6 +1,6 @@
 # Texan Flue Management System
 
-Phase A: team login, customers and properties, jobs, appointments, technician assignments, service catalog and private files. Next.js App Router, TypeScript, Tailwind/shadcn UI, Auth.js, Prisma and PostgreSQL.
+Phases A–B: team login, customers and properties, jobs, appointments, technician assignments, service catalog, private files, estimate builder, immutable document snapshots and branded PDFs. Next.js App Router, TypeScript, Tailwind/shadcn UI, Auth.js, Prisma and PostgreSQL.
 
 ## Run locally
 
@@ -13,6 +13,7 @@ docker compose up -d --wait
 npm run db:generate
 npm run db:migrate
 npm run db:seed
+npx playwright install chromium
 npm run dev
 ```
 
@@ -30,6 +31,10 @@ Their initial password is the `SEED_DEMO_PASSWORD` value in your local `.env`. N
 
 The seed creates the real organization address and phone, DEMO settings, three DEMO users and nineteen catalog entries explicitly marked DEMO. It fabricates no catalog prices or customer jobs. Organization email is blank because no verified email was supplied. Tax, fees and AI are disabled. Review starter descriptions and enter real prices as ADMIN before use.
 
+PDF rendering requires Chromium: install the bundled browser as above, or set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` in `.env` to your installed Chromium (this environment uses `/usr/bin/chromium`). PDF acceptance tests additionally require Poppler (`brew install poppler` on macOS; `poppler-utils` on Linux).
+
+Estimates are at `/estimates`; ADMIN template editing is at `/settings/templates`. Save a draft before previewing or issuing. Issue freezes the PDF/snapshot; edits thereafter require a new numbered revision. Tax and fees remain settings-gated; removal requires confirmation. Status updates are manual records, with no delivery/signature integration implied. See [Phase B evidence and limitations](docs/PHASE-B-REPORT.md).
+
 ## Screenshots
 
 Desktop dashboard using real DEMO database counts:
@@ -37,6 +42,12 @@ Desktop dashboard using real DEMO database counts:
 ![Dashboard](docs/screenshots/dashboard.png)
 
 [Mobile jobs screen](docs/screenshots/jobs-mobile.png).
+
+Actual issued acceptance PDF, $4,425.00:
+
+![Phase B estimate PDF first page](docs/screenshots/phase-b-estimate-first-page.png)
+
+[Pagination page two](docs/screenshots/phase-b-pagination-page-two.png).
 
 ## Checks
 
@@ -89,7 +100,7 @@ npx prisma migrate dev --name describe_change
 npm run db:generate
 ```
 
-Two migrations create the complete supplied domain model and a separate PostgreSQL sequence for collision-safe job numbers. The only semantic Prisma schema addition is the missing inverse field `ServiceCatalogItem.estimateLineItems`; no column, foreign key or existing relation was restructured. Corrupted schema comment text was replaced with ASCII.
+The initial migrations create the complete supplied domain model and a separate PostgreSQL sequence for collision-safe job numbers. Phase B adds database immutability guards for issued document versions and PDF assets, with no Prisma schema changes. The only semantic Prisma schema addition is the missing inverse field `ServiceCatalogItem.estimateLineItems`; no column, foreign key or existing relation was restructured. Corrupted schema comment text was replaced with ASCII.
 
 Local backup and a non-destructive restore into a separate database:
 
@@ -105,6 +116,6 @@ Back up private file storage separately along with the database. Backup/restore 
 
 Use a persistent PostgreSQL service, persistent private upload volume, trusted HTTPS reverse proxy, real SMTP credentials and strong `AUTH_SECRET`. Set `AUTH_URL` to the exact HTTPS origin; never reuse local demo credentials. `AUTH_TRUST_HOST=true` assumes the reverse proxy sanitizes forwarded host headers. Configure an upstream request-size limit and rate limiter before public exposure. The application limiter is in-process; multiple replicas require shared rate limiting. Do not seed demo accounts into a live customer database. Configure retention/monitoring, review access rules, and test backups before production use.
 
-Phase B document generation/snapshots, estimates/invoices, inspections, signatures, AI, manual payments and receipts are not implemented. See [the Phase A report](docs/PHASE-A-REPORT.md) for validation evidence and explicit remaining work. Company claims are limited to **Fully Insured**; services focus on wood-burning chimney work and dryer vents.
+Phase B estimates, snapshots and PDF generation are implemented. Invoices, inspections, signatures, AI, manual payments and receipts are not implemented. See [the Phase A report](docs/PHASE-A-REPORT.md) for validation evidence and explicit remaining work. Company claims are limited to **Fully Insured**; services focus on wood-burning chimney work and dryer vents.
 
 Design references: [brief](docs/CODEX-BRIEF.md), [decisions](docs/DECISIONS.md), [domain model](prisma/schema.prisma), [master spec](TEXAN_FLUE_CODEX_MASTER_SPEC.md), [PDF contract](docs/PDF-TEMPLATES.md), and [current scope](PHASE-A-PROMPT.txt).

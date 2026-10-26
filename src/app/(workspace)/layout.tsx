@@ -34,6 +34,7 @@ export default async function Layout({
             "Customers",
             "Properties",
             "Jobs",
+            "Estimates",
             "Services",
             "Files",
             ...(a.role === "ADMIN" ? ["Settings"] : []),
