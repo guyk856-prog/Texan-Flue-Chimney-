@@ -1,0 +1,18 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: texan
+      POSTGRES_PASSWORD: local-dev-only
+      POSTGRES_DB: texan_flue
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U texan -d texan_flue"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  postgres_data:

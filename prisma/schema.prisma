@@ -1,4 +1,4 @@
-// Texan Flue Management System ‚Äî domain model
+// Texan Flue Management System - domain model
 // Money is ALWAYS integer cents. Never a float, never a Decimal string in app code.
 // Issued documents are immutable: editing one creates a new DocumentVersion.
 
@@ -11,7 +11,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ org & identity
+// -------------------- org & identity
 
 model Organization {
   id        String   @id @default(cuid())
@@ -136,7 +136,7 @@ model PasswordResetToken {
   createdAt DateTime @default(now())
 }
 
-// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ customers
+// -------------------- customers
 
 model Customer {
   id             String   @id @default(cuid())
@@ -226,7 +226,7 @@ enum ApplianceType {
   UNKNOWN
 }
 
-// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ jobs
+// -------------------- jobs
 
 enum JobStatus {
   LEAD
@@ -293,7 +293,7 @@ model TechnicianAssignment {
   @@index([userId])
 }
 
-// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ service library
+// -------------------- service library
 
 model ServiceCatalogItem {
   id             String  @id @default(cuid())
@@ -316,6 +316,7 @@ model ServiceCatalogItem {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  estimateLineItems EstimateLineItem[]
   priceVersions ServicePriceVersion[]
   photos        FileAsset[] @relation("ServicePhotos")
 
@@ -336,7 +337,7 @@ model ServicePriceVersion {
   @@index([serviceId, effectiveFrom])
 }
 
-// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ documents (shared spine)
+// -------------------- documents (shared spine)
 
 enum DocumentType {
   ESTIMATE
@@ -412,7 +413,7 @@ model TemplateVersion {
   organization   Organization @relation(fields: [organizationId], references: [id])
   type           DocumentType
   version        Int
-  // Controlled template source. NOT arbitrary user HTML ‚Äî rendered through a
+  // Controlled template source. NOT arbitrary user HTML - rendered through a
   // allow-listed component set, see docs/ADR-004.
   source         String   @db.Text
   active         Boolean  @default(false)
@@ -440,7 +441,7 @@ model DocumentShareToken {
   @@index([documentId])
 }
 
-// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ estimates
+// -------------------- estimates
 
 enum EstimateStatus {
   DRAFT
@@ -525,7 +526,7 @@ model EstimateLineItem {
   @@index([estimateId, sortOrder])
 }
 
-// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ invoices
+// -------------------- invoices
 
 enum InvoiceStatus {
   DRAFT
@@ -596,7 +597,7 @@ model InvoiceLineItem {
   @@index([invoiceId, sortOrder])
 }
 
-// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ payments
+// -------------------- payments
 
 // No online payment processing in v1. Every row here records money that
 // arrived somewhere else and is being written down after the fact.
@@ -642,7 +643,7 @@ model Receipt {
   createdAt  DateTime @default(now())
 }
 
-// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ inspections
+// -------------------- inspections
 
 enum InspectionStatus {
   DRAFT
@@ -688,7 +689,7 @@ model Inspection {
   performedAt    DateTime
   applianceType  ApplianceType?
   weather        String?
-  // What could NOT be examined. This is not optional padding ‚Äî it is the
+  // What could NOT be examined. This is not optional padding - it is the
   // difference between an honest report and an overclaim.
   limitations    String?  @db.Text
   summary        String?  @db.Text
@@ -711,7 +712,7 @@ model InspectionSection {
   id           String @id @default(cuid())
   inspectionId String
   inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
-  key          String // firebox, damper, smoke_chamber, flue_liner, crown, flashing, ‚Ä¶
+  key          String // firebox, damper, smoke_chamber, flue_liner, crown, flashing, ...
   title        String
   sortOrder    Int    @default(0)
 
@@ -760,7 +761,7 @@ enum PhotoPhase {
   AFTER
 }
 
-// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ work orders
+// -------------------- work orders
 
 enum WorkOrderStatus {
   DRAFT
@@ -804,7 +805,7 @@ model ChangeOrder {
   @@index([workOrderId])
 }
 
-// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ signing
+// -------------------- signing
 
 model Signature {
   id         String @id @default(cuid())
@@ -848,7 +849,7 @@ model ConsentRecord {
   @@index([documentVersionId])
 }
 
-// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ files & email
+// -------------------- files & email
 
 model FileAsset {
   id          String @id @default(cuid())
@@ -899,7 +900,7 @@ model EmailDelivery {
   @@index([documentId])
 }
 
-// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ AI
+// -------------------- AI
 
 enum AIRequestKind {
   EXTRACT_DOCUMENT
@@ -950,7 +951,7 @@ model AIExtraction {
   id        String @id @default(cuid())
   requestId String
   request   AIRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  // Schema-validated payload: customer_name, line_items[], totals, warnings‚Ä¶
+  // Schema-validated payload: customer_name, line_items[], totals, warnings...
   payload   Json
   // 0-100. Anything under the review threshold is highlighted in the UI.
   confidence Int?
@@ -964,7 +965,7 @@ model AIExtraction {
   @@index([requestId])
 }
 
-// ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ‚îÄ bookkeeping
+// -------------------- bookkeeping
 
 model SequenceCounter {
   id             String @id @default(cuid())
@@ -972,7 +973,7 @@ model SequenceCounter {
   organization   Organization @relation(fields: [organizationId], references: [id])
   type           DocumentType
   year           Int
-  // Incremented inside a transaction with SELECT ‚Ä¶ FOR UPDATE.
+  // Incremented inside a transaction with SELECT ... FOR UPDATE.
   value          Int    @default(0)
 
   @@unique([organizationId, type, year])
