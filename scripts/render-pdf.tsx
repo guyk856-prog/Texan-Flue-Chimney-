@@ -9,13 +9,13 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { chromium } from "playwright";
 import { snapshotSchema } from "../src/lib/snapshot";
-import { EstimateDocument, PRINT_CSS } from "../src/pdf/document";
+import { EstimateDocument, PRINT_CSS, PHASE_C_CSS } from "../src/pdf/document";
 async function main() {
   const chunks: Buffer[] = [];
   let length = 0;
   for await (const chunk of process.stdin) {
     length += chunk.length;
-    if (length > 4 * 1024 * 1024) throw new Error("Snapshot too large");
+    if (length > 24 * 1024 * 1024) throw new Error("Snapshot too large");
     chunks.push(Buffer.from(chunk));
   }
   const snapshot = snapshotSchema.parse(
@@ -32,7 +32,7 @@ async function main() {
       <html lang="en">
         <head>
           <meta charSet="utf-8" />
-          <style>{fonts + PRINT_CSS}</style>
+          <style>{fonts + PRINT_CSS + PHASE_C_CSS}</style>
         </head>
         <body>
           <EstimateDocument snapshot={snapshot} />
@@ -79,6 +79,9 @@ async function main() {
         throw new Error("Required PDF font failed to load");
     });
     await page.evaluate(() => {
+      for (const image of document.images)
+        if (!image.complete || !image.naturalWidth)
+          throw new Error("A snapshot evidence image failed to load");
       const printableHeight = Math.floor(9.65 * 96);
       const headingHeight =
         document.querySelector("thead")?.getBoundingClientRect().height ?? 0;

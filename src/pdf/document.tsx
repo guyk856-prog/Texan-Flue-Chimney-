@@ -1,4 +1,6 @@
+/* eslint-disable @next/next/no-img-element -- Private snapshot images are embedded in offline PDFs and never sent to the Next image optimizer. */
 import React from "react";
+import { businessDate, businessInstant } from "../lib/business-date";
 import type { EstimateSnapshot } from "../lib/snapshot";
 import { formatCents } from "../lib/money";
 import { parseLayout } from "../lib/template-contract";
@@ -56,13 +58,75 @@ export function EstimateDocument({
                 </div>
                 <div>
                   {s.document.issuedAt
-                    ? `Issued ${s.document.issuedAt.slice(0, 10)}`
+                    ? `Issued ${businessDate(s.document.issuedAt)}`
                     : "DRAFT — Not issued"}{" "}
-                  · Valid until{" "}
-                  {s.document.validUntil?.slice(0, 10) ?? "Not specified"}
+                  {s.document.type === "ESTIMATE" && (
+                    <>
+                      · Valid until{" "}
+                      {s.document.validUntil?.slice(0, 10) ?? "Not specified"}
+                    </>
+                  )}
                 </div>
+                {s.financial && s.document.type === "INVOICE" && (
+                  <div>
+                    Issue date{" "}
+                    {s.financial.issueDate
+                      ? businessDate(s.financial.issueDate)
+                      : "Not issued"}{" "}
+                    · Due {s.financial.dueDate?.slice(0, 10) ?? "Not specified"}
+                  </div>
+                )}
+                {s.receipt && (
+                  <section className="receipt-box">
+                    <h2>
+                      {s.receipt.voidReason
+                        ? "VOID — PAYMENT REVERSED"
+                        : "Payment received elsewhere"}
+                    </h2>
+                    <p>
+                      Invoice {s.receipt.invoiceNumber} · {s.receipt.method} ·{" "}
+                      {businessInstant(s.receipt.paidAt)}
+                    </p>
+                    <p>
+                      Payment recorded:{" "}
+                      <strong>{formatCents(s.receipt.amountCents)}</strong>
+                    </p>
+                    <p>
+                      Balance after payment:{" "}
+                      <strong>
+                        {formatCents(s.receipt.balanceAfterCents)}
+                      </strong>
+                    </p>
+                    <p>Reference: {s.receipt.reference || "Not provided"}</p>
+                    {s.receipt.note && <p>{s.receipt.note}</p>}
+                    {s.receipt.voidReason && (
+                      <p>Void reason: {s.receipt.voidReason}</p>
+                    )}
+                  </section>
+                )}
+                {s.certificate && (
+                  <section className="rich">
+                    <h2>Approval record</h2>
+                    <p>
+                      {s.certificate.sourceNumber} · Signed version{" "}
+                      {s.certificate.sourceVersion}
+                    </p>
+                    <p>Signed PDF SHA-256: {s.certificate.signedContentHash}</p>
+                    <p>
+                      This record documents the electronic approval or
+                      acknowledgment of the exact scope shown. IP address is an
+                      audit detail, not identity verification.
+                    </p>
+                  </section>
+                )}
                 {s.document.revisionOf && (
-                  <div>Revision of {s.document.revisionOf}</div>
+                  <div>
+                    {s.document.type === "INVOICE" ||
+                    s.document.type === "RECEIPT"
+                      ? "Based on estimate"
+                      : "Revision of"}{" "}
+                    {s.document.revisionOf}
+                  </div>
                 )}
               </section>
             );
@@ -211,6 +275,18 @@ export function EstimateDocument({
                   <span>TOTAL</span>
                   <strong>{formatCents(s.totals.totalCents)}</strong>
                 </div>
+                {s.financial && (
+                  <>
+                    <div>
+                      <span>Amount paid</span>
+                      <span>{formatCents(s.financial.amountPaidCents)}</span>
+                    </div>
+                    <div>
+                      <span>Balance</span>
+                      <strong>{formatCents(s.financial.balanceCents)}</strong>
+                    </div>
+                  </>
+                )}
                 {block.options.showDeposit &&
                   s.totals.depositRequestCents > 0 && (
                     <div>
@@ -233,18 +309,120 @@ export function EstimateDocument({
             return (
               <section key={index} className="signature">
                 <h2>
-                  {block.options.mode === "customer"
-                    ? "Customer approval"
-                    : "Technician acknowledgment"}
+                  {s.inspection
+                    ? s.signature
+                      ? "Customer acknowledgment"
+                      : "Technician acknowledgment"
+                    : block.options.mode === "customer"
+                      ? "Customer approval"
+                      : "Technician acknowledgment"}
                 </h2>
-                <p>
-                  Signature ________________________________ &nbsp; Date
-                  ______________
-                </p>
+                {s.signature ? (
+                  <>
+                    <p className="typed-signature">{s.signature.typedName}</p>
+                    <p>
+                      {s.signature.action} · {s.signature.signedAt}
+                    </p>
+                    <p>
+                      {[s.signature.email, s.signature.phone]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                    <p>{s.signature.consentText}</p>
+                    <small>
+                      Consent version: {s.signature.consentVersion} · Reviewed
+                      PDF SHA-256: {s.signature.reviewedContentHash}
+                    </small>
+                  </>
+                ) : s.inspection?.techSignedAt ? (
+                  <p>
+                    Technician sign-off: {s.inspection.technicianName} ·{" "}
+                    {s.inspection.techSignedAt}
+                  </p>
+                ) : (
+                  <p>
+                    Signature ________________________________ &nbsp; Date
+                    ______________
+                  </p>
+                )}
+                {s.signature && s.inspection?.techSignedAt && (
+                  <p>
+                    Technician sign-off: {s.inspection.technicianName} ·{" "}
+                    {s.inspection.techSignedAt}
+                  </p>
+                )}
               </section>
             );
+          case "inspectionFindings":
+            return s.inspection ? (
+              <section key={index}>
+                <h2>
+                  {s.inspection.kind === "CHIMNEY"
+                    ? "Chimney findings"
+                    : "Dryer vent findings"}
+                </h2>
+                <p>
+                  Performed {businessInstant(s.inspection.performedAt)} ·
+                  Technician {s.inspection.technicianName} · Weather{" "}
+                  {s.inspection.weather || "Not recorded"}
+                </p>
+                {s.inspection.sections.map((section, i) => (
+                  <section className="finding-section" key={i}>
+                    <h2>{section.title}</h2>
+                    {section.findings.map((f) => (
+                      <div key={f.id} className="finding">
+                        <strong className={`finding-status ${f.status}`}>
+                          {f.status === "NA"
+                            ? "N/A"
+                            : f.status === "NOT_INSPECTED"
+                              ? "NOT INSPECTED"
+                              : f.status}
+                        </strong>
+                        {f.severity && (
+                          <p>Severity: {f.severity.replaceAll("_", " ")}</p>
+                        )}
+                        <p>
+                          <strong>Observation:</strong>{" "}
+                          {f.observation || "Not recorded"}
+                        </p>
+                        <p>
+                          <strong>Recommendation:</strong>{" "}
+                          {f.recommendation || "Not recorded"}
+                        </p>
+                      </div>
+                    ))}
+                  </section>
+                ))}
+              </section>
+            ) : null;
           case "photoGrid":
-            return null; // No inspection findings/photos exist in an estimate snapshot.
+            return s.inspection ? (
+              <section key={index}>
+                <h2>Photo evidence</h2>
+                <div
+                  className="photo-grid"
+                  style={{
+                    gridTemplateColumns: `repeat(${block.options.perRow},1fr)`,
+                  }}
+                >
+                  {s.inspection.sections.flatMap((section) =>
+                    section.findings.flatMap((f) =>
+                      f.photos.map((p, i) => (
+                        <figure key={`${f.id}-${i}`}>
+                          <img src={p.data} alt={p.caption || f.title} />
+                          <figcaption>
+                            {f.title} · {p.phase ?? "Evidence"}
+                            {p.pairKey ? ` · Pair ${p.pairKey}` : ""}
+                            <br />
+                            {p.caption}
+                          </figcaption>
+                        </figure>
+                      )),
+                    ),
+                  )}
+                </div>
+              </section>
+            ) : null;
           case "footer":
             return null; // Required disclaimer and optional copy are printed on every page by Playwright.
         }
@@ -254,3 +432,5 @@ export function EstimateDocument({
 }
 export const PRINT_CSS = `@page { size: letter; margin: 0.6in 0.55in 0.75in; }
 *{box-sizing:border-box}body{margin:0;color:#111111;background:#FFFFFF;font-family:SourceSans, sans-serif;font-size:10pt;line-height:1.35;font-variant-numeric:tabular-nums}header{position:relative;padding-bottom:12pt;border-bottom:2pt solid #C5A15B;margin-bottom:12pt}.wordmark{font-family:LibreBaskerville,serif;font-size:24pt;color:#8A6827}.tagline{font-size:8pt;letter-spacing:1.7pt;margin:5pt 0 10pt}.company{font-size:9pt;color:#6F6A63}.insured{position:absolute;right:0;bottom:18pt;color:#8A6827;font-size:9pt}h1{font-family:LibreBaskerville,serif;font-size:19pt;font-weight:400;margin:0 0 8pt}h2{font-size:10pt;color:#8A6827;break-after:avoid;margin:0 0 7pt}section.title{margin-bottom:14pt}section.title>div{font-size:9pt;color:#6F6A63}.parties{display:flex;gap:26pt;margin-bottom:16pt}.parties>div{flex:1}.items{border-collapse:collapse;width:100%;table-layout:fixed;margin-bottom:14pt}.items th{background:#F6F4F0;color:#111111;font-weight:600;border-bottom:1pt solid #C5A15B;text-align:left;padding:9pt 6pt}.items td{padding:8pt 6pt;vertical-align:top;border-bottom:0.6pt solid #DDD8CE;white-space:pre-wrap;overflow-wrap:anywhere}thead{display:table-header-group}tr{break-inside:avoid;page-break-inside:avoid}.service{width:23%}.detail{width:34%}.qty{width:10%}.unitPrice,.total{width:16.5%;text-align:right!important}.company-term,.note{font-size:8.5pt;color:#6F6A63;margin-top:6pt}small{font-size:8pt}.totals{margin:8pt 0 14pt auto;width:46%;break-inside:avoid}.totals>div{display:flex;justify-content:space-between;padding:5pt 0}.totals .grand{border-top:1pt solid #C5A15B;margin-top:6pt;padding-top:9pt;font-size:14pt}.rich{margin:16pt 0;white-space:pre-wrap}.signature{margin-top:16pt;padding-top:10pt;border-top:0.6pt solid #DDD8CE;break-inside:avoid}.signature p{margin-bottom:0}ul{padding-left:13pt;margin:6pt 0}`;
+
+export const PHASE_C_CSS = `.finding-section{margin:16pt 0}.finding{border:1pt solid #DDD8CE;padding:10pt;break-inside:avoid;margin-bottom:8pt}.finding-status{display:block;font-size:12pt;padding:6pt;border:1pt solid #6F6A63}.finding-status.FAIL{color:#9B2C2C;border-color:#9B2C2C}.finding-status.NOT_INSPECTED{background:#F6F4F0;border-width:2pt;color:#111111}.photo-grid{display:grid;gap:12pt}.photo-grid figure{margin:0;break-inside:avoid;border:1pt solid #DDD8CE;padding:7pt}.photo-grid img{width:100%;height:190pt;object-fit:contain}.photo-grid figcaption{font-size:9pt;white-space:pre-wrap}.typed-signature{font-family:LibreBaskerville,serif;font-size:18pt}.receipt-box{border:1pt solid #C5A15B;padding:12pt;margin-top:14pt;break-inside:avoid}.certificate,.signature small{overflow-wrap:anywhere}.finding p{white-space:pre-wrap}`;

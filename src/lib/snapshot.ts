@@ -10,7 +10,14 @@ export const snapshotSchema = z.object({
   document: z.object({
     id: txt,
     number: txt,
-    type: z.literal("ESTIMATE"),
+    type: z.enum([
+      "ESTIMATE",
+      "INVOICE",
+      "RECEIPT",
+      "INSPECTION",
+      "DRYER_VENT_REPORT",
+      "APPROVAL_CERTIFICATE",
+    ]),
     version: z.number().int().positive(),
     status: txt,
     issuedAt: txt.nullable(),
@@ -67,7 +74,7 @@ export const snapshotSchema = z.object({
         scopeSteps: z.array(txt),
       }),
     )
-    .min(1)
+    .min(0)
     .max(100),
   totals: z.object({
     subtotalCents: cents,
@@ -95,5 +102,90 @@ export const snapshotSchema = z.object({
   customerNote: txt,
   disclaimer: txt,
   footerCopy: txt,
+  limitations: txt.default(""),
+  summary: txt.default(""),
+  recommendations: txt.default(""),
+  paymentInstructions: txt.default(""),
+  inspection: z
+    .object({
+      kind: z.enum(["CHIMNEY", "DRYER_VENT"]),
+      performedAt: txt,
+      weather: txt,
+      technicianName: txt,
+      techSignedAt: txt.nullable(),
+      sections: z
+        .array(
+          z.object({
+            title: txt,
+            findings: z.array(
+              z.object({
+                id: txt,
+                title: txt,
+                status: z.enum(["PASS", "FAIL", "NA", "NOT_INSPECTED"]),
+                severity: txt.nullable(),
+                observation: txt,
+                recommendation: txt,
+                photos: z
+                  .array(
+                    z.object({
+                      data: z
+                        .string()
+                        .regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/),
+                      caption: txt,
+                      phase: txt.nullable(),
+                      pairKey: txt.nullable(),
+                    }),
+                  )
+                  .max(30),
+              }),
+            ),
+          }),
+        )
+        .max(50),
+    })
+    .optional(),
+  financial: z
+    .object({
+      amountPaidCents: cents,
+      balanceCents: cents,
+      issueDate: txt.nullable(),
+      dueDate: txt.nullable(),
+      status: txt,
+    })
+    .optional(),
+  receipt: z
+    .object({
+      paymentId: txt,
+      invoiceNumber: txt,
+      amountCents: cents,
+      method: txt,
+      paidAt: txt,
+      reference: txt,
+      note: txt,
+      balanceAfterCents: cents,
+      voidReason: txt.nullable(),
+    })
+    .optional(),
+  signature: z
+    .object({
+      name: txt,
+      email: txt,
+      phone: txt,
+      typedName: txt,
+      signedAt: txt,
+      consentText: txt,
+      consentVersion: txt,
+      reviewedContentHash: txt,
+      action: txt,
+    })
+    .optional(),
+  certificate: z
+    .object({
+      sourceNumber: txt,
+      sourceDocumentId: txt,
+      sourceVersion: z.number().int(),
+      signedContentHash: txt,
+    })
+    .optional(),
 });
 export type EstimateSnapshot = z.infer<typeof snapshotSchema>;

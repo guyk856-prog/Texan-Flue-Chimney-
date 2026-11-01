@@ -523,6 +523,24 @@ export async function setEstimateStatus(a: Actor, id: string, raw: unknown) {
       (!row.validUntil || row.validUntil > new Date())
     )
       throw new HttpError(409, "Estimate validity date has not elapsed.");
+    if (data.status === "APPROVED") {
+      const settings = await tx.organizationSettings.findUniqueOrThrow({
+        where: { organizationId: a.organizationId },
+      });
+      if (
+        settings.estimateSignatureRequired &&
+        !(await tx.signature.findFirst({
+          where: {
+            documentVersionId: row.document.versions[0].id,
+            action: "APPROVE",
+          },
+        }))
+      )
+        throw new HttpError(
+          409,
+          "Customer signature is required by organization policy.",
+        );
+    }
     const stamp = new Date();
     await tx.estimate.update({
       where: { id },

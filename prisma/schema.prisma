@@ -747,6 +747,8 @@ model InspectionPhoto {
   finding   InspectionFinding @relation(fields: [findingId], references: [id], onDelete: Cascade)
   fileId    String
   file      FileAsset @relation(fields: [fileId], references: [id])
+  originalFileId String?
+  originalFile FileAsset? @relation("InspectionOriginal", fields: [originalFileId], references: [id])
   caption   String?
   // before/after pairing
   pairKey   String?
@@ -870,6 +872,7 @@ model FileAsset {
   jobPhotos       Job[]             @relation("JobPhotos")
   servicePhotos   ServiceCatalogItem[] @relation("ServicePhotos")
   lineItemPhotos  EstimateLineItem[]   @relation("LineItemPhotos")
+  originalInspectionPhotos InspectionPhoto[] @relation("InspectionOriginal")
   inspectionPhotos InspectionPhoto[]
   signatureImages Signature[]       @relation("SignatureImage")
   versionPdfs     DocumentVersion[] @relation("VersionPdf")

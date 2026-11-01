@@ -4,7 +4,11 @@ export const hashToken = (token: string) =>
   createHash("sha256").update(token).digest("hex");
 export const newToken = () => randomBytes(32).toString("base64url");
 // Single-instance limiter. Use a shared limiter before running multiple replicas.
-const buckets = new Map<string, { count: number; expires: number }>();
+type Bucket = { count: number; expires: number };
+const shared = globalThis as unknown as {
+  texanRateBuckets?: Map<string, Bucket>;
+};
+const buckets = (shared.texanRateBuckets ??= new Map<string, Bucket>());
 export function limit(key: string, max = 10, windowMs = 900_000) {
   const now = Date.now();
   for (const [k, v] of buckets) if (v.expires <= now) buckets.delete(k);

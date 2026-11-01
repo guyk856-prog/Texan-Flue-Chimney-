@@ -13,6 +13,10 @@ export const DISCLAIMERS = {
 const copy = z.string().max(4000);
 const block = z.discriminatedUnion("type", [
   z.object({
+    type: z.literal("inspectionFindings"),
+    options: z.object({}).strict(),
+  }),
+  z.object({
     type: z.literal("header"),
     options: z.object({ showTagline: z.boolean().default(true) }).strict(),
   }),
@@ -56,6 +60,10 @@ const block = z.discriminatedUnion("type", [
           "assumptions",
           "warrantyTerms",
           "customerNote",
+          "limitations",
+          "summary",
+          "recommendations",
+          "paymentInstructions",
         ]),
         heading: copy,
         copy: copy.optional(),
@@ -94,6 +102,7 @@ const block = z.discriminatedUnion("type", [
 export type Block = z.infer<typeof block>;
 export type Layout = { blocks: Block[] };
 const allowed = new Set([
+  "inspectionFindings",
   "header",
   "docTitle",
   "partyBlock",
@@ -106,7 +115,10 @@ const allowed = new Set([
 ]);
 export function parseLayout(raw: unknown): Layout {
   const envelope = z
-    .object({ blocks: z.array(z.unknown()).max(30) })
+    .object({
+      blocks: z.array(z.unknown()).max(30),
+      checklist: z.array(z.unknown()).max(50).optional(),
+    })
     .strict()
     .parse(raw);
   return {

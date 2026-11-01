@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WorkflowPage } from "@/components/workflow-page";
 import { EstimatesPage } from "@/components/estimates-page";
 import { notFound, redirect, forbidden } from "next/navigation";
 import { actor, admin, office, visibleJob } from "@/lib/access";
@@ -86,6 +87,7 @@ async function renderPage({
     q?: string;
     customerId?: string;
     propertyId?: string;
+    estimateId?: string;
   }>;
 }) {
   const a = await actor();
@@ -94,6 +96,10 @@ async function renderPage({
   const query = await searchParams;
   const canEdit = a.role !== "TECHNICIAN";
   if (path.length > 3) notFound();
+  if (["invoices", "inspections", "receipts"].includes(kind) && !sub)
+    return WorkflowPage({ a, kind, id, sourceId: query.estimateId });
+  if (kind === "settings" && id === "checklists" && !sub)
+    return WorkflowPage({ a, kind: "checklists" });
   if (kind === "estimates" && !sub) return EstimatesPage({ a, id });
   if (kind === "settings" && id === "templates" && !sub) {
     admin(a);
@@ -113,6 +119,9 @@ async function renderPage({
           <h2>{org.name}</h2>
           <Button asChild variant="outline">
             <Link href="/settings/templates">Document templates</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/settings/checklists">Inspection checklists</Link>
           </Button>
           <p>
             {org.addrLine1}, {org.city}, {org.state} {org.postal}

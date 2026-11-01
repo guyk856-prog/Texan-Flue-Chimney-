@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DocumentActions } from "./document-actions";
 import { type Actor, office, admin } from "@/lib/access";
 import { db } from "@/lib/db";
 import * as estimates from "@/lib/estimates";
@@ -150,6 +151,19 @@ export async function EstimatesPage({ a, id }: { a: Actor; id?: string }) {
                 Revised estimate: {row.supersededBy.document.number} →
               </Link>
             </p>
+          )}
+          {issued && (
+            <DocumentActions
+              documentId={row.documentId}
+              canShare={a.role !== "TECHNICIAN"}
+            />
+          )}
+          {row.status === "APPROVED" && a.role !== "TECHNICIAN" && (
+            <Button asChild>
+              <Link href={`/invoices/new?estimateId=${row.id}`}>
+                Convert approved estimate to invoice
+              </Link>
+            </Button>
           )}
           <EstimateActions
             key={row.updatedAt.toISOString()}
