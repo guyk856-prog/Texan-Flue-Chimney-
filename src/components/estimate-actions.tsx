@@ -53,7 +53,9 @@ export function EstimateActions({
         router.refresh();
       }
     } catch {
-      setError("Unable to complete action.");
+      setError(
+        "This action did not finish. Your entries remain here. Check your connection and retry.",
+      );
     } finally {
       setBusy(false);
     }

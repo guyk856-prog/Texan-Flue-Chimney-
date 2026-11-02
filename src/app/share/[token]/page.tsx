@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { loadShare, visitor } from "@/lib/sharing";
 import { HttpError } from "@/lib/errors";
 import { CustomerShare } from "@/components/customer-share";
+export const metadata = { robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 export default async function Page({
   params,

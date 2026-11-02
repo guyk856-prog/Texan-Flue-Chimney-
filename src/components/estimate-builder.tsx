@@ -213,7 +213,7 @@ export function EstimateBuilder({
             router.refresh();
           }
         } catch (e) {
-          setError(e instanceof Error ? e.message : "Unable to save.");
+          setError(e instanceof Error ? e.message : "Your changes were not saved. Your entries remain here. Check your connection and retry.");
         } finally {
           setBusy(false);
         }

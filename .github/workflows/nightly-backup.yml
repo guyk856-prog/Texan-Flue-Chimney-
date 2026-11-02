@@ -1,0 +1,38 @@
+name: Nightly encrypted backup and restore verification
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  backup:
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.PRODUCTION_BACKUPS_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DIRECT_URL: ${{ secrets.BACKUP_DIRECT_URL }}
+      DATABASE_URL: ${{ secrets.BACKUP_DIRECT_URL }}
+      STORAGE_DRIVER: vercel-blob
+      BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+      BACKUP_BLOB_READ_WRITE_TOKEN: ${{ secrets.BACKUP_BLOB_READ_WRITE_TOKEN }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - name: Check backup configuration without printing secrets
+        run: node -e 'for (const k of ["DIRECT_URL","BLOB_READ_WRITE_TOKEN","BACKUP_BLOB_READ_WRITE_TOKEN","BACKUP_PASSPHRASE"]) if (!process.env[k]) throw new Error("Missing backup secret " + k)'
+      - run: npm run backup
+      - name: Restore to a disposable database and verify private-file hashes
+        run: npm run restore:verify -- "$(find private/backups -name '*.bin' -print -quit)"
+      - name: Clean expired request buckets and abandoned quarantine uploads
+        run: npm run maintenance
+      - name: Remove expired backups only after a successful restore
+        run: node scripts/backup-prune.mjs
+      - name: Record successful restore check
+        run: echo 'Database and private file restore checks passed. Review this job in Actions.' >> "$GITHUB_STEP_SUMMARY"

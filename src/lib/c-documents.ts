@@ -1,9 +1,13 @@
+import {
+  storeBytes,
+  readStored,
+  removeStored,
+  storageDirectory,
+} from "./storage";
 import { logoData } from "./brand";
 import { layoutFor } from "./document-layouts";
 import { Prisma, DocumentType } from "@prisma/client";
 import { createHash } from "node:crypto";
-import { mkdir, writeFile, unlink, readFile } from "node:fs/promises";
-import path from "node:path";
 import { db } from "./db";
 import { type Actor, office, jobScope } from "./access";
 import { createNumberedDocument } from "./document-number";
@@ -35,25 +39,8 @@ export async function audit(
     },
   });
 }
-export function privateDirectory() {
-  const dir = path.resolve(
-    /* turbopackIgnore: true */ process.env.PRIVATE_STORAGE_DIR ??
-      "./private/uploads",
-  );
-  if (
-    dir === path.resolve("public") ||
-    dir.startsWith(path.resolve("public") + path.sep)
-  )
-    throw new Error("Storage must be private");
-  return dir;
-}
-export async function storedBytes(key: string) {
-  if (!/^[A-Za-z0-9_-]+$/.test(key))
-    throw new HttpError(404, "File not found.");
-  return readFile(
-    path.join(/* turbopackIgnore: true */ privateDirectory(), key),
-  );
-}
+export const privateDirectory = storageDirectory;
+export const storedBytes = readStored;
 export async function transaction<T>(
   work: (tx: Tx, files: string[]) => Promise<T>,
 ): Promise<T> {
@@ -61,7 +48,7 @@ export async function transaction<T>(
   try {
     return await db.$transaction((tx) => work(tx, files), TX_OPTIONS);
   } catch (e) {
-    await Promise.all(files.map((file) => unlink(file).catch(() => {})));
+    await Promise.all(files.map((file) => removeStored(file).catch(() => {})));
     throw e;
   }
 }
@@ -74,14 +61,9 @@ export async function blob(
   mimeType: string,
   jobId?: string | null,
 ) {
-  await mkdir(privateDirectory(), { recursive: true, mode: 0o700 });
   const storageKey = newToken();
-  const file = path.join(
-    /* turbopackIgnore: true */ privateDirectory(),
-    storageKey,
-  );
-  await writeFile(file, bytes, { flag: "wx", mode: 0o600 });
-  files.push(file);
+  await storeBytes(storageKey, bytes, mimeType);
+  files.push(storageKey);
   return tx.fileAsset.create({
     data: {
       storageKey,
@@ -176,7 +158,7 @@ export async function baseSnapshot(
       validUntil: null,
       revisionOf: null,
     },
-    organization: { ...org, logoData: await logoData() },
+    organization: { ...org, logoData: await logoData(tx, org.logoId) },
     customer,
     property,
     lines: [],

@@ -130,7 +130,9 @@ export function InvoiceForm({
             router.refresh();
           } else setError(d.error);
         } catch {
-          setError("Unable to save invoice.");
+          setError(
+            "The invoice was not saved. Your entries remain here. Check your connection and retry.",
+          );
         } finally {
           setBusy(false);
         }

@@ -1,3 +1,4 @@
+import "@/lib/runtime-env";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
@@ -23,11 +24,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
       credentials: { email: {}, password: {} },
-      async authorize(raw) {
+      async authorize(raw, request) {
         const parsed = login.safeParse(raw);
         if (!parsed.success) return null;
         const { email, password } = parsed.data;
-        limit(`login:${email}`);
+        await limit(
+          `login-ip:${request.headers.get("x-vercel-forwarded-for") ?? "direct"}`,
+          50,
+        );
+        await limit(`login:${email}`);
         const user = await db.user.findUnique({ where: { email } });
         // A valid fixed hash keeps unknown-user password work comparable.
         const valid = await compare(
@@ -82,6 +87,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         !row.user.deletedAt
           ? row.user.id
           : "";
+      if (row) Object.assign(session, { expires: row.expiresAt.toISOString() });
       return session;
     },
   },

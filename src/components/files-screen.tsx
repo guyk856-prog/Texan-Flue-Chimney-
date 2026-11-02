@@ -1,4 +1,5 @@
 "use client";
+import { sendFile } from "@/lib/upload-client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "./ui/button";
@@ -12,6 +13,7 @@ export function FilesScreen({
   const router = useRouter();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   return (
     <>
       <section className="panel">
@@ -20,21 +22,37 @@ export function FilesScreen({
           PDF, PNG, JPEG or WebP. Maximum 10 MiB. Downloads require your session
           and expire after five minutes.
         </p>
+        {busy && (
+          <progress
+            aria-label="File upload progress"
+            value={progress}
+            max={100}
+          />
+        )}
         <form
+          id="private-upload"
           onSubmit={async (e) => {
             e.preventDefault();
             setError("");
             setBusy(true);
             try {
-              const r = await fetch("/api/files", {
-                method: "POST",
-                body: new FormData(e.currentTarget),
-              });
-              const d = await r.json();
-              if (!r.ok) setError(d.error);
-              else router.refresh();
-            } catch {
-              setError("Upload failed.");
+              const form = new FormData(e.currentTarget);
+              const file = form.get("file");
+              if (!(file instanceof File)) return;
+              await sendFile(
+                file,
+                {
+                  purpose: "FILE",
+                  metadata: { jobId: form.get("jobId") || null },
+                },
+                setProgress,
+              );
+              router.refresh();
+            } catch (error) {
+              setError(
+                (error instanceof Error ? error.message + " " : "") +
+                  "Your selected file remains here. Check the file requirements and connection, then retry.",
+              );
             } finally {
               setBusy(false);
             }
@@ -72,7 +90,18 @@ export function FilesScreen({
       )}
       <section className="panel">
         <h2>Files</h2>
-        {!rows.length && <p className="muted">No files uploaded yet.</p>}
+        {!rows.length && (
+          <div className="empty-state">
+            <h2>No private files yet</h2>
+            <p>
+              Keep job documents and evidence together with controlled
+              downloads.
+            </p>
+            <a className="empty-action" href="#private-upload">
+              Upload first file
+            </a>
+          </div>
+        )}
         {rows.map((f) => (
           <div key={f.id} className="rowlink">
             <span>
@@ -88,7 +117,9 @@ export function FilesScreen({
                   if (!r.ok) setError(d.error);
                   else window.location.assign(d.url);
                 } catch {
-                  setError("Unable to download.");
+                  setError(
+                    "The download did not start. Check your connection, then choose Download again.",
+                  );
                 }
               }}
             >

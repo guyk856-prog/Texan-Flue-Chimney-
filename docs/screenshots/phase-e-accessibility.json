@@ -1,0 +1,45 @@
+{
+  "testedAt": "2026-11-02T04:32:11.600Z",
+  "tool": "Lighthouse real Chrome audit",
+  "viewport": {
+    "width": 375,
+    "height": 812
+  },
+  "screens": [
+    {
+      "screen": "login",
+      "score": 100,
+      "failures": []
+    },
+    {
+      "screen": "dashboard",
+      "score": 100,
+      "failures": []
+    },
+    {
+      "screen": "customers",
+      "score": 100,
+      "failures": []
+    },
+    {
+      "screen": "estimate-builder",
+      "score": 100,
+      "failures": []
+    },
+    {
+      "screen": "inspection",
+      "score": 100,
+      "failures": []
+    },
+    {
+      "screen": "privacy",
+      "score": 100,
+      "failures": []
+    },
+    {
+      "screen": "setup",
+      "score": 100,
+      "failures": []
+    }
+  ]
+}

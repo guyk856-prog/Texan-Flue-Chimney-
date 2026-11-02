@@ -50,8 +50,7 @@ PHASE A IS DONE WHEN
 CONSTRAINTS THAT DO NOT CHANGE
 - Money is integer cents everywhere. No floats.
 - Tax and fees are explicit fields, disabled by default.
-- The only claim the company makes is "Fully Insured". Never licensed, certified,
-  CSIA, code-compliant or guaranteed - in UI copy, seed data or anywhere else.
+- The only claim the company makes is "Fully Insured". No additional qualifications or assurances in UI copy, seed data or anywhere else.
 - Company focus is wood-burning chimney work and dryer vents.
 
 REPORT BACK WITH

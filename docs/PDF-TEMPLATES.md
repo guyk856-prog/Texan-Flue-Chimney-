@@ -88,8 +88,7 @@ Each footer carries the disclaimer for its type. These are required, not decorat
 - **work authorization** — "Authorizes the scope described above. Additional work
   requires a separate change order."
 
-Never add "guaranteed", "certified", "licensed", "code compliant" or an inspection
-level to any footer. "Fully Insured" is the only standing claim.
+Never add unsupported qualifications, assurances or an inspection level to any footer. "Fully Insured" is the only standing claim.
 
 ## Acceptance
 

@@ -272,7 +272,17 @@ export async function createInvoice(a: Actor, raw: unknown, id?: string) {
         validUntil: null,
         revisionOf: sourceId ? snapshot.document.number : null,
       },
-      organization: { ...snapshot.organization, logoData: await logoData() },
+      organization: {
+        ...snapshot.organization,
+        logoData: await logoData(
+          tx,
+          (
+            await tx.organization.findUniqueOrThrow({
+              where: { id: a.organizationId },
+            })
+          ).logoId,
+        ),
+      },
       templateVersionId: t.id,
       template: parseLayout(JSON.parse(t.source)),
       disclaimer: DISCLAIMERS.invoice,

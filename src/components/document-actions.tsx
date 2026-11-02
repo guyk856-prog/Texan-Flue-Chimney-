@@ -136,7 +136,9 @@ export function WorkflowButton({
             if (!r.ok) setError(d.error);
             else router.refresh();
           } catch {
-            setError("Unable to complete request.");
+            setError(
+              "This action did not finish. Your entries remain here. Check your connection and retry.",
+            );
           } finally {
             setBusy(false);
           }

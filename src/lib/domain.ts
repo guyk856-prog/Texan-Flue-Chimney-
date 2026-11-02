@@ -243,7 +243,7 @@ export async function assign(
     where: {
       id: userId,
       organizationId: a.organizationId,
-      role: "TECHNICIAN",
+      role: { in: ["TECHNICIAN", "ADMIN"] },
       active: true,
       deletedAt: null,
     },
@@ -357,7 +357,7 @@ export async function technicians(a: Actor) {
   return db.user.findMany({
     where: {
       organizationId: a.organizationId,
-      role: "TECHNICIAN",
+      role: { in: ["TECHNICIAN", "ADMIN"] },
       active: true,
       deletedAt: null,
     },

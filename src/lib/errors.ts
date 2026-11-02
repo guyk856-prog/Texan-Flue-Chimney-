@@ -1,3 +1,5 @@
+import "./runtime-env";
+import { reportEvent } from "./monitoring";
 import { ZodError } from "zod";
 import { Prisma } from "@prisma/client";
 export class HttpError extends Error {
@@ -27,9 +29,15 @@ export function failure(e: unknown) {
       { error: "That value already exists." },
       { status: 409 },
     );
-  console.error("Request failed", e instanceof Error ? e.name : "UnknownError");
+  void reportEvent(
+    "API_REQUEST_FAILED",
+    e instanceof Error ? e.name : "UnknownError",
+  );
   return Response.json(
-    { error: "Unable to complete request." },
+    {
+      error:
+        "We could not save this change. Your form entries remain here. Check your connection and try again.",
+    },
     { status: 500 },
   );
 }

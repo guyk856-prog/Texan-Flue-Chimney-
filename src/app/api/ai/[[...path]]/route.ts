@@ -1,4 +1,5 @@
-import { storedBytes } from "@/lib/c-documents";
+import { readStored } from "@/lib/storage";
+import { openStored } from "@/lib/storage";
 import { actor } from "@/lib/access";
 import { failure, sameOrigin, readJson, HttpError } from "@/lib/errors";
 import * as ai from "@/lib/ai/service";
@@ -38,7 +39,7 @@ async function handle(
       if (!row.request.sourceFileId)
         throw new HttpError(404, "Source not found.");
       const file = await ai.visibleFile(a, row.request.sourceFileId);
-      return new Response(new Uint8Array(await storedBytes(file.storageKey)), {
+      return new Response(await openStored(file.storageKey), {
         headers: {
           "Content-Type": file.mimeType,
           "Content-Disposition": "inline",
@@ -98,6 +99,41 @@ async function handle(
     if (kind === "write" && req.method === "POST")
       return Response.json(await ai.write(a, await readJson(req), req.signal));
     if (kind === "extract" && req.method === "POST") {
+      if (req.headers.get("content-type")?.startsWith("application/json")) {
+        const data = z
+          .object({
+            instruction: z.string(),
+            mode: z.enum(["DOCUMENT", "PHOTO", "TEXT"]),
+            sourceFileId: z.string().optional(),
+          })
+          .strict()
+          .parse(await readJson(req, 12000));
+        let file: File | undefined;
+        if (data.sourceFileId) {
+          const row = await ai.visibleFile(a, data.sourceFileId);
+          if (row.sizeBytes > 10 * 1024 * 1024)
+            throw new HttpError(413, "File exceeds 10 MiB.");
+          file = new File(
+            [new Uint8Array(await readStored(row.storageKey))],
+            row.filename,
+            { type: row.mimeType },
+          );
+        }
+        return Response.json(
+          await ai.extract(
+            a,
+            {
+              instruction: data.instruction,
+              mode: data.mode,
+              file,
+              sourceFileId: data.sourceFileId,
+            },
+            req.signal,
+          ),
+          { status: 201 },
+        );
+      }
+
       const reader = req.body?.getReader();
       if (!reader) throw new HttpError(400, "Select a source.");
       const chunks: Uint8Array[] = [];

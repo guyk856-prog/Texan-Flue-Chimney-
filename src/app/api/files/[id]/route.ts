@@ -11,13 +11,13 @@ export async function GET(
     const { id } = await params;
     idSchema.parse(id);
     const url = new URL(request.url);
-    const { row, bytes } = await download(
+    const { row, stream } = await download(
       a,
       id,
       Number(url.searchParams.get("expires")),
       url.searchParams.get("signature") ?? "",
     );
-    return new Response(new Uint8Array(bytes), {
+    return new Response(await stream(), {
       headers: {
         "Content-Type": row.mimeType,
         "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(row.filename)}`,

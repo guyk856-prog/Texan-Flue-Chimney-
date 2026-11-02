@@ -1,4 +1,6 @@
 "use client";
+import Link from "next/link";
+
 import Image from "next/image";
 import { useState } from "react";
 import { EstimateDocument } from "@/pdf/document";
@@ -47,13 +49,15 @@ export function CustomerShare({
       if (!r.ok) setError(d.error);
       else setResult(d);
     } catch {
-      setError("Unable to submit. Please retry.");
+      setError(
+        "Your signature was not submitted. Your entries remain here. Check your connection and retry.",
+      );
     } finally {
       setBusy(false);
     }
   }
   return (
-    <main style={{ maxWidth: 1000, margin: "auto" }}>
+    <main id="main-content" style={{ maxWidth: 1000, margin: "auto" }}>
       <Image
         src="/brand/logo-mark.webp"
         width={90}
@@ -129,6 +133,18 @@ export function CustomerShare({
                 submit(e.currentTarget, "APPROVE");
               }}
             >
+              <section
+                className="consent-disclosure"
+                aria-labelledby="esign-disclosure"
+              >
+                <h2 id="esign-disclosure">
+                  Electronic records and signatures disclosure
+                </h2>
+                <p>{consentText}</p>
+                <p className="muted">Version: {consentVersion}</p>
+                <Link href="/legal/privacy">Privacy Policy</Link> ·{" "}
+                <Link href="/legal/terms">Terms of Service</Link>
+              </section>
               <div className="fields">
                 <label>
                   Your name
@@ -147,7 +163,7 @@ export function CustomerShare({
                   <input name="typedName" maxLength={200} />
                 </label>
               </div>
-              <p>{consentText}</p>
+
               <label>
                 <input name="consent" type="checkbox" />I affirm the
                 electronic-signature consent above.

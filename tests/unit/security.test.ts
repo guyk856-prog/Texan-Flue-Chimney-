@@ -60,10 +60,10 @@ describe("server policy", () => {
     ).toThrow();
     expect(() => sameOrigin(new Request("http://localhost:3000"))).toThrow();
   });
-  it("limits repeated attempts", () => {
+  it("limits repeated attempts", async () => {
     const key = newToken();
-    limit(key, 1);
-    expect(() => limit(key, 1)).toThrow("Too many attempts");
+    await limit(key, 1);
+    await expect(limit(key, 1)).rejects.toThrow("Too many attempts");
   });
   it("generates high-entropy tokens and stable non-plaintext hashes", () => {
     const a = newToken(),

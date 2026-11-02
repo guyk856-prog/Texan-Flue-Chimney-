@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element -- Evidence is a private session-bound signed URL. */
 "use client";
+import { sendFile } from "@/lib/upload-client";
 import { useState, useRef } from "react";
 import { Button } from "./ui/button";
 import { EstimateBuilder } from "./estimate-builder";
@@ -33,10 +34,25 @@ export function AIReview(props: Props) {
           setBusy(true);
           setError("");
           try {
+            const file = data.get("file");
+            let sourceFileId: string | undefined;
+            if (file instanceof File && file.size) {
+              const saved = await sendFile(
+                file,
+                { purpose: "AI_SOURCE", metadata: {} },
+                () => {},
+              );
+              sourceFileId = saved.id;
+            }
             const r = await fetch("/api/ai/extract", {
               method: "POST",
               signal: abort.current.signal,
-              body: data,
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                instruction: data.get("instruction"),
+                mode: data.get("mode"),
+                sourceFileId,
+              }),
             });
             const d = await r.json();
             if (!r.ok) {

@@ -1,10 +1,16 @@
 # Texan Flue Management System
 
-Phases A–D: team login, customers and properties, jobs, appointments, technician assignments, service catalog, private files, estimate builder, invoices and manual payments, receipts, mobile inspections, customer share/signature flows, optional AI extraction with human review, immutable document snapshots and branded PDFs. Next.js App Router, TypeScript, Tailwind/shadcn UI, Auth.js, Prisma and PostgreSQL.
+Phases A–E: team login, customers and properties, jobs, appointments, technician assignments, service catalog, private files, estimate builder, invoices and manual payments, receipts, mobile inspections, customer share/signature flows, optional AI extraction with human review, immutable document snapshots and branded PDFs. Next.js App Router, TypeScript, Tailwind/shadcn UI, Auth.js, Prisma and PostgreSQL.
+
+## Deploy for the owner
+
+Follow [DEPLOY.md](DEPLOY.md) for Vercel, Neon, private object storage, first ADMIN setup, domain, backups and recovery. [Environment reference](docs/ENVIRONMENT.md) lists every variable. No demo seed runs on deployment. Cloud accounts are not connected yet: **no live deployment is verified**. [Phase E evidence and remaining work](docs/PHASE-E-REPORT.md) distinguishes local tests from pending cloud checks.
+
+An empty installation opens `/setup`: create the first owner using the temporary bootstrap token, confirm company details, upload a logo, review prices, then open the dashboard. Solo ADMIN can assign and sign off their own inspections. Inspections persist unsynced drafts and queued photos in this browser; keep that browser/device until synchronization completes. Customer exports and archival controls require ADMIN; physical erasure follows [the retention procedure](docs/DATA-RETENTION.md).
 
 ## Run locally
 
-Requires Node.js 22.12+ (tested with Node 24), npm and Docker Compose v2. From the repository root:
+Requires Node.js 22.x (local checks used Node 24), npm and Docker Compose v2. From the repository root:
 
 ```sh
 npm ci
@@ -41,7 +47,7 @@ Invoices are at `/invoices`, payment receipts at `/receipts`, and mobile inspect
 
 Manual workflows work with no AI key. To enable AI, configure `ANTHROPIC_API_KEY` on the **server**, restart the app, and enable assistance as ADMIN in Company settings. Supported model: `claude-haiku-4-5-20251001`. Never use a `NEXT_PUBLIC_` variable for credentials. With the key absent or organization setting disabled, AI tools are absent. AI defaults off and the seed preserves that setting.
 
-OFFICE/ADMIN can open **Estimates → Build with AI**. Upload a screenshot, PNG/JPEG/WebP photograph, PDF, or paste Hebrew/English notes. Upload limit: 10 MiB; PDF limit: five unencrypted pages. **Poppler is now a runtime dependency for PDF imports** (`pdfinfo`, `pdftotext`, `pdftoppm`), not just a test dependency. PDF pages use text first; only pages without text are sent as images. Evidence stays private and is linked to the extraction.
+OFFICE/ADMIN can open **Estimates → Build with AI**. Upload a screenshot, PNG/JPEG/WebP photograph, PDF, or paste Hebrew/English notes. Upload limit: 10 MiB; PDF limit: five unencrypted pages. PDF imports use bundled PDF.js and native canvas on the server; Poppler is needed only for PDF acceptance tests. PDF pages use text first; only pages without text are sent as images. Evidence stays private and is linked to the extraction.
 
 The side-by-side review separates quoted source evidence from generated English copy. Unknown prices/quantities remain blank and require an explicit human value. Pick customer/property manually, confirm requested tax/fee removal, review the complete form, then approve creating a **DRAFT**. Nothing is issued, sent, signed or approved by AI. Natural-language edits show a diff and require confirmation; existing drafts still require Save draft afterward. Contextual writing tools preview editable text before accepting it into a field. Cancel aborts the provider call.
 
@@ -138,3 +144,20 @@ Use a persistent PostgreSQL service, persistent private upload volume, trusted H
 Phase C adds invoices, manual external-payment records, receipts, inspections and customer signatures. Optional Anthropic assistance with mandatory human review is implemented in Phase D; live-provider extraction accuracy has not been tested. See [the Phase C report](docs/PHASE-C-REPORT.md) for its tested behavior and limits, and [Phase D](docs/PHASE-D-REPORT.md) for AI and branding; earlier [Phase A](docs/PHASE-A-REPORT.md) and [Phase B](docs/PHASE-B-REPORT.md) reports describe their original scope. Company claims are limited to **Fully Insured**; services focus on wood-burning chimney work and dryer vents.
 
 Design references: [brief](docs/CODEX-BRIEF.md), [decisions](docs/DECISIONS.md), [domain model](prisma/schema.prisma), [master spec](TEXAN_FLUE_CODEX_MASTER_SPEC.md), [PDF contract](docs/PDF-TEMPLATES.md), and [current scope](PHASE-A-PROMPT.txt).
+
+## Production and recovery commands
+
+```sh
+# Vercel runs this; required production variables must be configured first.
+npm run build:vercel
+# Local production build (does not migrate automatically).
+npm run build
+npm start
+# Production-build acceptance, including real Lighthouse audits.
+npm run test:e2e:production
+# Encrypted local backup and disposable restore verification.
+npm run backup
+npm run restore:verify -- private/backups/NAME.bin
+```
+
+Set a separate 32+ character `BACKUP_PASSPHRASE` securely before backing up. Backup and recovery scripts need Docker PostgreSQL 17 tooling. Scheduled cloud backups are disabled until their documented secrets and enable variable are configured. Do not run the demo seed in production.

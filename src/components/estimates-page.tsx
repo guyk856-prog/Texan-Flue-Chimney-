@@ -1,3 +1,4 @@
+import { EmptyState } from "./app-states";
 import { AIReview } from "./ai-review";
 import { aiAvailable } from "@/lib/ai/service";
 import { HttpError } from "@/lib/errors";
@@ -49,7 +50,18 @@ export async function EstimatesPage({ a, id }: { a: Actor; id?: string }) {
           )}
         </div>
         <section className="panel">
-          {!rows.length && <p>No estimates yet.</p>}
+          {!rows.length && (
+            <EmptyState
+              title="No estimates yet"
+              description="Build a proposal with an explicit scope and prices for a customer."
+              href={a.role === "TECHNICIAN" ? "/jobs" : "/estimates/new"}
+              action={
+                a.role === "TECHNICIAN"
+                  ? "View assigned jobs"
+                  : "Create first estimate"
+              }
+            />
+          )}
           {rows.map((row) => (
             <Link
               key={row.id}

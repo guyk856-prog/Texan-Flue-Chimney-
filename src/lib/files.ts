@@ -1,5 +1,5 @@
+import { storeBytes, openStored, removeStored } from "./storage";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
-import { mkdir, writeFile, readFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import { Prisma } from "@prisma/client";
 import { db } from "./db";
@@ -48,19 +48,6 @@ export function validateFile(
       "File type is not allowed or content does not match. Use PDF, PNG, JPEG or WebP.",
     );
 }
-function directory() {
-  // Upload bytes live on a runtime-mounted private volume, never in the build bundle.
-  const dir = path.resolve(
-    /* turbopackIgnore: true */ process.env.PRIVATE_STORAGE_DIR ??
-      "./private/uploads",
-  );
-  if (
-    dir === path.resolve("public") ||
-    dir.startsWith(path.resolve("public") + path.sep)
-  )
-    throw new Error("Storage must be private");
-  return dir;
-}
 export async function fileScope(a: Actor): Promise<Prisma.FileAssetWhereInput> {
   const owners = await db.user.findMany({
     where: { organizationId: a.organizationId },
@@ -81,18 +68,18 @@ export async function visibleFile(a: Actor, id: string) {
   if (!row) throw new HttpError(404, "File not found.");
   return row;
 }
-export async function upload(a: Actor, file: File, jobId?: string) {
+export async function upload(
+  a: Actor,
+  file: File,
+  jobId?: string,
+  intentId?: string,
+) {
   validateFile(file.name, file.type, file.size);
   if (jobId) await visibleJob(a, jobId);
   const bytes = Buffer.from(await file.arrayBuffer());
   validateFile(file.name, file.type, bytes.length, bytes);
   const key = newToken();
-  const dir = directory();
-  await mkdir(dir, { recursive: true, mode: 0o700 });
-  await writeFile(path.join(/* turbopackIgnore: true */ dir, key), bytes, {
-    flag: "wx",
-    mode: 0o600,
-  });
+  await storeBytes(key, bytes, file.type);
   try {
     return await db.$transaction(async (tx) => {
       const row = await tx.fileAsset.create({
@@ -118,10 +105,15 @@ export async function upload(a: Actor, file: File, jobId?: string) {
           action: "UPLOAD",
         },
       });
+      if (intentId)
+        await tx.uploadIntent.update({
+          where: { id: intentId },
+          data: { resultId: row.id },
+        });
       return { id: row.id, filename: row.filename };
     });
   } catch (e) {
-    await unlink(path.join(/* turbopackIgnore: true */ dir, key));
+    await removeStored(key);
     throw e;
   }
 }
@@ -164,8 +156,7 @@ export async function download(
     throw new HttpError(404, "File not found.");
   return {
     row,
-    bytes: await readFile(
-      path.join(/* turbopackIgnore: true */ directory(), row.storageKey),
-    ),
+
+    stream: () => openStored(row.storageKey),
   };
 }

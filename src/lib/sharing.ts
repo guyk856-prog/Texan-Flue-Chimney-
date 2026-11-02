@@ -1,3 +1,4 @@
+import { openStored } from "./storage";
 import { z } from "zod";
 import { isIP } from "node:net";
 import { db } from "./db";
@@ -14,7 +15,6 @@ import {
   createNumberedDocument,
   type Tx,
 } from "./c-documents";
-import { storedBytes } from "./c-documents";
 import { CONSENT_TEXT, CONSENT_VERSION } from "./checklists";
 import { parseLayout, DISCLAIMERS } from "./template-contract";
 import { todayDallas } from "./invoices";
@@ -22,17 +22,22 @@ export const LINK_UNAVAILABLE = "This link is unavailable.";
 export type Visitor = { ip: string | null; userAgent: string };
 export function visitor(headers: Headers): Visitor {
   const candidate =
-    process.env.TRUST_PROXY === "true"
-      ? headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    process.env.VERCEL || process.env.TRUST_PROXY === "true"
+      ? (
+          headers.get("x-vercel-forwarded-for") ??
+          headers.get("x-forwarded-for")
+        )
+          ?.split(",")[0]
+          ?.trim()
       : null;
   return {
     ip: candidate && isIP(candidate) ? candidate : null,
     userAgent: (headers.get("user-agent") ?? "").slice(0, 500),
   };
 }
-function rate(token: string, v: Visitor) {
-  limit(`share-ip:${v.ip ?? "direct"}`, 240, 60000);
-  limit(`share-token:${hashToken(token)}`, 60, 60000);
+async function rate(token: string, v: Visitor) {
+  await limit(`share-ip:${v.ip ?? "direct"}`, 240, 60000);
+  await limit(`share-token:${hashToken(token)}`, 60, 60000);
 }
 async function tokenRow(tx: Tx, token: string) {
   const row = await tx.documentShareToken.findUnique({
@@ -74,7 +79,26 @@ async function tokenRow(tx: Tx, token: string) {
   });
   if (!version?.issuedAt || !version.pdfFile || version.pdfFile.deletedAt)
     throw new HttpError(404, LINK_UNAVAILABLE);
-  return { row, version, snapshot: snapshotSchema.parse(version.snapshot) };
+  const snapshot = snapshotSchema.parse(version.snapshot);
+  if (
+    !resource &&
+    (!(await tx.customer.findFirst({
+      where: {
+        id: snapshot.customer.id,
+        organizationId: row.document.organizationId,
+        deletedAt: null,
+      },
+    })) ||
+      !(await tx.property.findFirst({
+        where: {
+          id: snapshot.property.id,
+          customerId: snapshot.customer.id,
+          deletedAt: null,
+        },
+      })))
+  )
+    throw new HttpError(404, LINK_UNAVAILABLE);
+  return { row, version, snapshot };
 }
 function signable(record: Awaited<ReturnType<typeof tokenRow>>) {
   const { row, snapshot } = record;
@@ -172,7 +196,7 @@ export async function revokeShare(a: Actor, documentId: string, id: string) {
   return { revoked: true };
 }
 export async function loadShare(token: string, v: Visitor, track = true) {
-  rate(token, v);
+  await rate(token, v);
   return transaction(async (tx) => {
     const record = await tokenRow(tx, token);
     if (track) {
@@ -195,10 +219,11 @@ export async function loadShare(token: string, v: Visitor, track = true) {
   });
 }
 export async function sharePdf(token: string, v: Visitor) {
-  rate(token, v);
+  await rate(token, v);
   const { version, snapshot } = await tokenRow(db, token);
   return {
-    bytes: await storedBytes(version.pdfFile!.storageKey),
+    stream: () => openStored(version.pdfFile!.storageKey),
+    storageKey: version.pdfFile!.storageKey,
     filename: `${snapshot.document.number}-v${snapshot.document.version}.pdf`,
   };
 }
@@ -215,7 +240,7 @@ const signing = z
   })
   .strict();
 export async function signShare(token: string, v: Visitor, raw: unknown) {
-  rate(token, v);
+  await rate(token, v);
   const input = signing.parse(raw);
   return transaction(async (tx, files) => {
     let record = await tokenRow(tx, token);

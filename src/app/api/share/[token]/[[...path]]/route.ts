@@ -10,8 +10,8 @@ export async function GET(
     if (path?.length) {
       if (path.join("/") !== "pdf")
         throw new HttpError(404, "This link is unavailable.");
-      const { bytes, filename } = await sharePdf(token, visitor(req.headers));
-      return new Response(new Uint8Array(bytes), {
+      const { stream, filename } = await sharePdf(token, visitor(req.headers));
+      return new Response(await stream(), {
         headers: {
           "Content-Type": "application/pdf",
           "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,

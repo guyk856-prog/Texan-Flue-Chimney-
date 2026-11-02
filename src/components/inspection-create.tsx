@@ -55,7 +55,9 @@ export function InspectionCreate({
             router.refresh();
           } else setError(d.error);
         } catch {
-          setError("Unable to create inspection.");
+          setError(
+            "The inspection was not created. Your entries remain here. Check your connection and retry.",
+          );
         } finally {
           setBusy(false);
         }

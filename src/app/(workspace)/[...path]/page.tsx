@@ -1,3 +1,6 @@
+import { EmptyState } from "@/components/app-states";
+import { AuditPage } from "@/components/audit-page";
+import { CustomerPrivacy } from "@/components/customer-privacy";
 import Image from "next/image";
 import { AIConfiguration } from "@/components/ai-tools";
 import Link from "next/link";
@@ -44,8 +47,35 @@ function Search({ value = "" }: { value?: string }) {
     </form>
   );
 }
-function Empty() {
-  return <p className="muted">No records found.</p>;
+function Empty({
+  kind = "records",
+  canEdit = true,
+}: {
+  kind?: string;
+  canEdit?: boolean;
+}) {
+  const singular: Record<string, string> = {
+    customers: "customer",
+    properties: "property",
+    jobs: "job",
+    appointments: "appointment",
+  };
+  return (
+    <EmptyState
+      title={`No ${kind} yet`}
+      description={`Use this screen to keep your ${kind} organized. ${canEdit ? `Add your first ${singular[kind] ?? "record"} to get started.` : "Assigned records will appear here when office assigns a job to you."}`}
+      href={
+        canEdit ? (kind === "appointments" ? "/jobs" : `/${kind}/new`) : "/jobs"
+      }
+      action={
+        canEdit
+          ? kind === "appointments"
+            ? "Open a job to add an appointment"
+            : `Add first ${singular[kind] ?? "record"}`
+          : "View assigned jobs"
+      }
+    />
+  );
 }
 function Detail({ row }: { row: Record<string, unknown> }) {
   return (
@@ -100,6 +130,8 @@ async function renderPage({
   if (path.length > 3) notFound();
   if (["invoices", "inspections", "receipts"].includes(kind) && !sub)
     return WorkflowPage({ a, kind, id, sourceId: query.estimateId });
+  if (kind === "settings" && id === "audit" && !sub)
+    return AuditPage({ a, query: query.q });
   if (kind === "settings" && id === "checklists" && !sub)
     return WorkflowPage({ a, kind: "checklists" });
   if (kind === "estimates" && !sub) return EstimatesPage({ a, id });
@@ -117,6 +149,14 @@ async function renderPage({
     return (
       <>
         <Header title="Company settings" />
+        <div className="actions">
+          <Link className="empty-action" href="/setup">
+            Guided company setup
+          </Link>
+          <Link className="empty-action" href="/settings/audit">
+            View audit log
+          </Link>
+        </div>
         <div className="panel">
           <Image
             src="/brand/logo-mark.webp"
@@ -144,8 +184,9 @@ async function renderPage({
             {org.settings?.aiEnabled ? "Enabled" : "Disabled"}
           </p>
           <p className="muted">
-            Company configuration is read-only in Phase A. Admins can edit
-            catalog wording and price versions in the service library.
+            Company contact and logo changes are available in guided setup.
+            Admins can edit catalog wording and price versions in the service
+            library.
           </p>
         </div>
       </>
@@ -156,6 +197,13 @@ async function renderPage({
     return (
       <>
         <Header title="A clear view of the day." />
+        {a.role === "ADMIN" && (
+          <p>
+            <Link className="empty-action" href="/setup">
+              Review first-run setup
+            </Link>
+          </p>
+        )}
         <p className="muted">
           Live records for your{" "}
           {a.role === "TECHNICIAN" ? "assigned jobs" : "organization"}.
@@ -238,7 +286,7 @@ async function renderPage({
           </div>
           <Search value={query.q} />
           <section className="panel">
-            {!rows.length && <Empty />}
+            {!rows.length && <Empty kind={kind} canEdit={canEdit} />}
             {rows.map((c) => (
               <Link className="rowlink" href={`/customers/${c.id}`} key={c.id}>
                 <strong>{c.name}</strong>
@@ -296,7 +344,9 @@ async function renderPage({
               </Button>
             )}
           </div>
-          {!c.properties.length && <Empty />}
+          {!c.properties.length && (
+            <Empty kind="properties" canEdit={canEdit} />
+          )}
           {c.properties.map((p) => (
             <Link className="rowlink" key={p.id} href={`/properties/${p.id}`}>
               {p.line1}
@@ -308,7 +358,7 @@ async function renderPage({
         </section>
         <section className="panel">
           <h2>Jobs</h2>
-          {!c.jobs.length && <Empty />}
+          {!c.jobs.length && <Empty kind="jobs" canEdit={canEdit} />}
           {c.jobs.map((j) => (
             <Link className="rowlink" href={`/jobs/${j.id}`} key={j.id}>
               {j.title}
@@ -317,7 +367,10 @@ async function renderPage({
           ))}
         </section>
         {a.role === "ADMIN" && (
-          <Archive endpoint={`/api/data/customers/${id}`} />
+          <>
+            <CustomerPrivacy id={id} />
+            <Archive endpoint={`/api/data/customers/${id}`} />
+          </>
         )}
       </>
     );
@@ -330,7 +383,7 @@ async function renderPage({
           <Header title="Properties" />
           <Search value={query.q} />
           <section className="panel">
-            {!rows.length && <Empty />}
+            {!rows.length && <Empty kind={kind} canEdit={canEdit} />}
             {rows.map((p) => (
               <Link className="rowlink" href={`/properties/${p.id}`} key={p.id}>
                 {p.line1}
@@ -415,7 +468,7 @@ async function renderPage({
         )}
         <section className="panel">
           <h2>Jobs</h2>
-          {!p.jobs.length && <Empty />}
+          {!p.jobs.length && <Empty kind="jobs" canEdit={canEdit} />}
           {p.jobs.map((j) => (
             <Link className="rowlink" href={`/jobs/${j.id}`} key={j.id}>
               {j.title}
@@ -449,7 +502,7 @@ async function renderPage({
           </div>
           <Search value={query.q} />
           <section className="panel">
-            {!rows.length && <Empty />}
+            {!rows.length && <Empty kind={kind} canEdit={canEdit} />}
             {rows.map((j) => (
               <Link className="rowlink" href={`/jobs/${j.id}`} key={j.id}>
                 <div>
@@ -546,7 +599,9 @@ async function renderPage({
                 Dallas time · {t.note}
               </p>
             ))}
-            {!j.appointments.length && <Empty />}
+            {!j.appointments.length && (
+              <Empty kind="appointments" canEdit={canEdit} />
+            )}
           </section>
         )}
         {a.role === "ADMIN" && <Archive endpoint={`/api/data/jobs/${id}`} />}

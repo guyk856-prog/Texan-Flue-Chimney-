@@ -1,3 +1,4 @@
+import { SessionGuard } from "@/components/session-guard";
 import { AIProvider } from "@/components/ai-tools";
 import { aiAvailable } from "@/lib/ai/service";
 import Image from "next/image";
@@ -80,7 +81,10 @@ export default async function Layout({
             469-771-7000
           </p>
         </aside>
-        <main>{children}</main>
+        <main id="main-content">
+          <SessionGuard />
+          {children}
+        </main>
       </div>
     </AIProvider>
   );

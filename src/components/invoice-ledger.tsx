@@ -93,7 +93,9 @@ export function InvoiceLedger({
                     if (r.ok) router.refresh();
                     else setError(d.error);
                   } catch {
-                    setError("Unable to reverse payment.");
+                    setError(
+                      "The payment was not reversed. Check your connection, review the current payment record and retry.",
+                    );
                   } finally {
                     setBusy(false);
                   }
@@ -133,7 +135,9 @@ export function InvoiceLedger({
                   router.push(`/receipts/${d.receipt.id}`);
                 } else setError(d.error);
               } catch {
-                setError("Unable to record payment.");
+                setError(
+                  "The payment was not recorded. Your entries remain here. Check your connection and retry.",
+                );
               } finally {
                 setBusy(false);
               }

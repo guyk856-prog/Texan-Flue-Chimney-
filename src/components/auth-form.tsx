@@ -17,7 +17,7 @@ export function AuthForm({
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   return (
-    <div className="auth panel">
+    <main id="main-content" className="auth panel">
       <Image
         src="/brand/logo-mark.webp"
         width={90}
@@ -49,7 +49,12 @@ export function AuthForm({
                   "Unable to sign in. Check your details or try again later.",
                 );
               else {
-                router.push("/dashboard");
+                const target = new URLSearchParams(window.location.search).get(
+                  "returnTo",
+                );
+                router.push(
+                  target && /^\/(?!\/)/.test(target) ? target : "/dashboard",
+                );
                 router.refresh();
               }
             } else {
@@ -126,6 +131,6 @@ export function AuthForm({
           {mode === "login" ? "Forgot password?" : "Back to sign in"}
         </Link>
       </form>
-    </div>
+    </main>
   );
 }

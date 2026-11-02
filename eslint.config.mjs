@@ -6,10 +6,13 @@ export default defineConfig([
   ...ts,
   globalIgnores([
     ".next/**",
+    "dist/**",
+    ".next-phase-e/**",
     ".next-phase-d/**",
     "node_modules/**",
     "private/**",
     "test-results/**",
+    "test-results-phase-e/**",
     "playwright-report/**",
     "next-env.d.ts",
   ]),

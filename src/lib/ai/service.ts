@@ -55,7 +55,7 @@ async function start(
   sourceFileId?: string,
 ) {
   await requireAI(a);
-  limit(`ai:${a.id}`, 20, 3600000);
+  await limit(`ai:${a.id}`, 20, 3600000);
   return db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "Organization" WHERE id=${a.organizationId} FOR UPDATE`;
     const s = await tx.organizationSettings.findUniqueOrThrow({
@@ -166,6 +166,7 @@ export async function extract(
     instruction: string;
     mode: "DOCUMENT" | "PHOTO" | "TEXT";
     file?: File;
+    sourceFileId?: string;
   },
   signal: AbortSignal,
   provider: AIProvider = new AnthropicProvider(),
@@ -191,7 +192,11 @@ export async function extract(
           text: "No uploaded document. Use only explicit facts in the owner notes.",
         },
       ];
-  const file = raw.file ? await upload(a, raw.file) : null;
+  const file = raw.sourceFileId
+    ? await visibleFile(a, raw.sourceFileId)
+    : raw.file
+      ? await upload(a, raw.file)
+      : null;
   const delimiter = newToken();
   const result = await run(
     a,

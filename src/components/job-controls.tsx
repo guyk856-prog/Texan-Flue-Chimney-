@@ -46,7 +46,9 @@ export function JobControls({
       if (!r.ok) setError(d.error);
       else router.refresh();
     } catch {
-      setError("Connection failed.");
+      setError(
+        "Connection lost. Your entries remain here. Check your connection and retry.",
+      );
     } finally {
       setBusy(false);
     }

@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
-export default function Home() {
-  redirect("/dashboard");
+import { db } from "@/lib/db";
+export const dynamic = "force-dynamic";
+export default async function Page() {
+  redirect((await db.user.count()) ? "/dashboard" : "/setup");
 }

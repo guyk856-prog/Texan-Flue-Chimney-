@@ -341,7 +341,7 @@ test.describe
     await page
       .getByRole("button", { name: "Save inspection", exact: true })
       .click();
-    await expect(page.getByRole("status")).toContainText("saved");
+    await expect(page.locator(".success[role=status]")).toContainText("saved");
     await page.screenshot({
       path: "docs/screenshots/phase-c-inspection-phone.png",
       fullPage: true,

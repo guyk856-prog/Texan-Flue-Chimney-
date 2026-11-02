@@ -90,7 +90,7 @@ export function ChecklistEditor({
                 r.ok ? `Saved checklist version ${d.version}.` : d.error,
               );
             } catch {
-              setMessage("Unable to save.");
+              setMessage("Your changes were not saved. Your entries remain here. Check your connection and retry.");
             }
           }}
         >

@@ -59,14 +59,20 @@ export function RecordForm({
             body: JSON.stringify(values),
           });
           const data = await r.json();
-          if (!r.ok) setError(data.error ?? "Unable to save.");
+          if (!r.ok)
+            setError(
+              data.error ??
+                "Your changes were not saved. Your entries remain here. Check your connection and retry.",
+            );
           else {
             setSaved(true);
             if (successPath) router.push(successPath.replace(":id", data.id));
             router.refresh();
           }
         } catch {
-          setError("Connection failed. Please retry.");
+          setError(
+            "Connection lost. Your entries remain here. Check your connection and retry.",
+          );
         } finally {
           setBusy(false);
         }

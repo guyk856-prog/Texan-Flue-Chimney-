@@ -1,9 +1,8 @@
+import { storeBytes, removeStored } from "./storage";
 import { logoData } from "./brand";
 import { Prisma, EstimateStatus } from "@prisma/client";
 import { z } from "zod";
 import { createHash } from "node:crypto";
-import { mkdir, writeFile, unlink } from "node:fs/promises";
-import path from "node:path";
 import { db } from "./db";
 import { type Actor, office, jobScope } from "./access";
 import { HttpError } from "./errors";
@@ -281,7 +280,7 @@ async function buildSnapshot(
       validUntil: row.validUntil?.toISOString() ?? null,
       revisionOf: row.supersedes?.document.number ?? null,
     },
-    organization: { ...org, logoData: await logoData() },
+    organization: { ...org, logoData: await logoData(tx, org.logoId) },
     customer: row.customer,
     property: row.property,
     lines: row.lineItems.map((l) => ({
@@ -414,19 +413,9 @@ export async function issueEstimate(a: Actor, id: string) {
           stamp.toISOString(),
         );
         const pdf = await renderPdf(snapshot);
-        const dir = path.resolve(
-          /* turbopackIgnore: true */ process.env.PRIVATE_STORAGE_DIR ??
-            "./private/uploads",
-        );
-        if (
-          dir === path.resolve("public") ||
-          dir.startsWith(path.resolve("public") + path.sep)
-        )
-          throw new Error("Storage must be private");
-        await mkdir(dir, { recursive: true, mode: 0o700 });
         const key = newToken();
-        stored = path.join(/* turbopackIgnore: true */ dir, key);
-        await writeFile(stored, pdf, { flag: "wx", mode: 0o600 });
+        await storeBytes(key, pdf, "application/pdf");
+        stored = key;
         const contentHash = createHash("sha256").update(pdf).digest("hex");
         const file = await tx.fileAsset.create({
           data: {
@@ -465,7 +454,7 @@ export async function issueEstimate(a: Actor, id: string) {
       { timeout: 90000, maxWait: 30000 },
     );
   } catch (e) {
-    if (stored) await unlink(stored).catch(() => {});
+    if (stored) await removeStored(stored).catch(() => {});
     throw e;
   }
 }

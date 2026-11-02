@@ -9,6 +9,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // -------------------- org & identity
@@ -72,6 +73,7 @@ model OrganizationSettings {
   defaultTerms      String? @db.Text
   defaultExclusions String? @db.Text
 
+  onboardingCompletedAt DateTime?
   updatedAt DateTime @updatedAt
 }
 
@@ -1014,4 +1016,29 @@ model AuditLog {
 
   @@index([organizationId, createdAt])
   @@index([entity, entityId])
+}
+
+// Operational records: shared request limiting and quarantined direct uploads.
+model RateLimitBucket {
+  keyHash String @id
+  count Int
+  expiresAt DateTime
+  @@index([expiresAt])
+}
+model UploadIntent {
+  id String @id @default(cuid())
+  userId String
+  organizationId String
+  storageKey String @unique
+  filename String
+  mimeType String
+  sizeBytes Int
+  purpose String
+  resourceId String?
+  metadata Json
+  expiresAt DateTime
+  consumedAt DateTime?
+  resultId String?
+  createdAt DateTime @default(now())
+  @@index([expiresAt])
 }

@@ -14,7 +14,7 @@ export async function requestReset(raw: unknown) {
     })
     .strict()
     .parse(raw);
-  limit(`reset:${email}`, 4);
+  await limit(`reset:${email}`, 4);
   const user = await db.user.findFirst({
     where: { email, active: true, deletedAt: null },
   });
@@ -54,7 +54,7 @@ export async function resetPassword(raw: unknown) {
     })
     .strict()
     .parse(raw);
-  limit(`reset-token:${hashToken(token)}`, 5);
+  await limit(`reset-token:${hashToken(token)}`, 5);
   const passwordHash = await hash(password, 12);
   await db.$transaction(async (tx) => {
     const row = await tx.passwordResetToken.findUnique({

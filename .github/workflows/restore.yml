@@ -1,0 +1,32 @@
+name: Recover to new empty database and private store
+on:
+  workflow_dispatch:
+    inputs:
+      backup_name:
+        description: Encrypted backup filename from the private backup store
+        required: true
+      confirmation:
+        description: Type RESTORE TO EMPTY TARGET after configuring empty target secrets
+        required: true
+permissions:
+  contents: read
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: recovery
+    env:
+      RESTORE_BACKUP_NAME: ${{ inputs.backup_name }}
+      RESTORE_CONFIRM: ${{ inputs.confirmation }}
+      RESTORE_DIRECT_URL: ${{ secrets.RESTORE_DIRECT_URL }}
+      RESTORE_BLOB_READ_WRITE_TOKEN: ${{ secrets.RESTORE_BLOB_READ_WRITE_TOKEN }}
+      BACKUP_BLOB_READ_WRITE_TOKEN: ${{ secrets.BACKUP_BLOB_READ_WRITE_TOKEN }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node scripts/restore-production.mjs

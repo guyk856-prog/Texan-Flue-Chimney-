@@ -1,3 +1,4 @@
+import { limit } from "@/lib/security";
 import { sameOrigin, readJson, failure, HttpError } from "@/lib/errors";
 import { requestReset, resetPassword } from "@/lib/password-reset";
 export async function POST(
@@ -6,6 +7,10 @@ export async function POST(
 ) {
   try {
     sameOrigin(request);
+    await limit(
+      `reset-ip:${request.headers.get("x-vercel-forwarded-for") ?? "direct"}`,
+      25,
+    );
     const { action } = await params;
     if (Number(request.headers.get("content-length")) > 4096)
       throw new HttpError(413, "Request too large.");

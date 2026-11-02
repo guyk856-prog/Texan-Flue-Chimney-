@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { defineConfig } from "@playwright/test";
 export default defineConfig({
-  testIgnore: "**/phase-d.spec.ts",
+  testIgnore: ["**/phase-d.spec.ts","**/phase-e.spec.ts"],
   testDir: "./tests/e2e",
   fullyParallel: false,
   workers: 1,

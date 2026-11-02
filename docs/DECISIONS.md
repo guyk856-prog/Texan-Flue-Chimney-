@@ -158,6 +158,8 @@ The client hides what a role cannot do. That is cosmetic. Every mutation re-chec
 | Delete anything | ✓ (soft) | — | — |
 | Read audit log | ✓ | — | — |
 
+A solo owner with ADMIN access may be assigned fieldwork and personally sign off an inspection assigned to them. OFFICE users cannot substitute for the assigned person’s sign-off.
+
 A technician fetching a job they are not assigned to gets a 404, not a 403 — the
 existence of other customers' jobs is itself information.
 
@@ -182,7 +184,6 @@ Tagline "WHERE CHIMNEYS MEET LUXURY". Address `2781 N Carroll Ave, Dallas, TX 75
 phone `469-771-7000` — the owner confirmed on 2026-10-24 that this address is correct
 for the business and is **not** to be changed to the registered office.
 
-Claims permitted on any document: **"Fully Insured"** and nothing else. Never
-licensed, certified, CSIA, code-compliant, or guaranteed. Services offered are
+Claims permitted on any document: **"Fully Insured"** and nothing else. No additional qualifications or assurances are permitted. Services offered are
 wood-burning chimney work and dryer vents; gas valve work and gas log installation
 are not offered and must not appear in the seeded service library.

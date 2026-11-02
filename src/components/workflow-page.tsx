@@ -1,3 +1,4 @@
+import { EmptyState } from "./app-states";
 import Link from "next/link";
 import { type Actor, admin, office } from "@/lib/access";
 import * as invoices from "@/lib/invoices";
@@ -79,7 +80,16 @@ export async function WorkflowPage({
             )}
           </div>
           <section className="panel">
-            {!rows.length && <p>No invoices yet.</p>}
+            {!rows.length && (
+              <EmptyState
+                title="No invoices yet"
+                description="Create an invoice from an approved estimate or enter a reviewed scope manually."
+                href={canWrite ? "/invoices/new" : "/jobs"}
+                action={
+                  canWrite ? "Create first invoice" : "View assigned jobs"
+                }
+              />
+            )}
             {rows.map((r) => (
               <Link className="rowlink" href={`/invoices/${r.id}`} key={r.id}>
                 <span>
@@ -261,6 +271,14 @@ export async function WorkflowPage({
       return (
         <>
           <h1>Receipts</h1>
+          {!rows.length && (
+            <EmptyState
+              title="No receipts yet"
+              description="A receipt is created only after the office records money already received."
+              href="/invoices"
+              action="Open invoices"
+            />
+          )}
           <section className="panel">
             {!rows.length && (
               <p>Receipts appear only after a payment is recorded.</p>
@@ -315,7 +333,14 @@ export async function WorkflowPage({
             <Link href="/inspections/new">New inspection</Link>
           </Button>
           <section className="panel">
-            {!rows.length && <p>No inspections yet.</p>}
+            {!rows.length && (
+              <EmptyState
+                title="No inspections yet"
+                description="Start a chimney or dryer-vent report for an assigned job."
+                href="/inspections/new"
+                action="Start first inspection"
+              />
+            )}
             {rows.map((r) => (
               <Link
                 className="rowlink"
@@ -381,6 +406,7 @@ export async function WorkflowPage({
         <InspectionEditor
           key={r.updatedAt.toISOString()}
           row={r}
+          userId={a.id}
           canEdit={r.status === "DRAFT" && (canWrite || own)}
           canSignoff={r.status === "DRAFT" && own}
           canFinalize={r.status === "TECH_SIGNED" && (canWrite || own)}

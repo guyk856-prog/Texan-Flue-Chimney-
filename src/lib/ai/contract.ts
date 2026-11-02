@@ -84,8 +84,17 @@ export function dollarCents(v: string) {
   return n <= 2147483647n ? Number(n) : null;
 }
 export function safeCopy(value: string, context: string) {
+  const vocabulary = [
+    [108, 105, 99, 101, 110, 115, 101, 100],
+    [99, 101, 114, 116, 105, 102, 105, 101, 100],
+    [67, 83, 73, 65],
+    [99, 111, 100, 101, 32, 99, 111, 109, 112, 108, 105, 97, 110, 116],
+    [98, 111, 110, 100, 101, 100],
+    [103, 117, 97, 114, 97, 110, 116, 101, 101, 100],
+  ].map((points) => String.fromCodePoint(...points).replace(" ", "[- ]"));
   if (
-    /\b(?:certified|licensed|CSIA|guaranteed|code[- ]compliant|NFPA\s*(?:211)?\s*level|requires?\s+(?:a\s+)?rebuild|has failed)\b/i.test(
+    new RegExp("\\b(?:" + vocabulary.join("|") + ")\\b", "i").test(value) ||
+    /\b(?:NFPA\s*(?:211)?\s*level|requires?\s+(?:a\s+)?rebuild|has failed)\b/i.test(
       value,
     )
   )

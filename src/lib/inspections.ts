@@ -125,7 +125,7 @@ export async function createInspection(a: Actor, raw: unknown) {
       where: {
         id: technicianId,
         organizationId: a.organizationId,
-        role: "TECHNICIAN",
+        role: { in: ["TECHNICIAN", "ADMIN"] },
         active: true,
         deletedAt: null,
         assignments: { some: { jobId: job.id } },
@@ -206,6 +206,7 @@ export const findingInput = z
 export async function saveInspection(a: Actor, id: string, raw: unknown) {
   const data = z
     .object({
+      expectedUpdatedAt: z.iso.datetime().optional(),
       limitations: text,
       summary: text,
       recommendations: text,
@@ -216,6 +217,14 @@ export async function saveInspection(a: Actor, id: string, raw: unknown) {
     .parse(raw);
   return transaction(async (tx) => {
     const row = await lock(tx, a, id, true);
+    if (
+      data.expectedUpdatedAt &&
+      row.updatedAt.toISOString() !== data.expectedUpdatedAt
+    )
+      throw new HttpError(
+        409,
+        "The server copy changed. Your local notes are safe. Review both versions before syncing.",
+      );
     const ids = new Set(
       row.sections.flatMap((s) => s.findings.map((f) => f.id)),
     );
@@ -356,6 +365,7 @@ export async function inspectionPhoto(
   id: string,
   file: File,
   raw: unknown,
+  intentId?: string,
 ) {
   const meta = z
     .object({
@@ -439,6 +449,11 @@ export async function inspectionPhoto(
       originalFileId: original.id,
       compressedFileId: display.id,
     });
+    if (intentId)
+      await tx.uploadIntent.update({
+        where: { id: intentId },
+        data: { resultId: photo.id },
+      });
     return photo;
   });
 }
