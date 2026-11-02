@@ -1,3 +1,6 @@
+import { AIReview } from "./ai-review";
+import { aiAvailable } from "@/lib/ai/service";
+import { HttpError } from "@/lib/errors";
 import Link from "next/link";
 import { DocumentActions } from "./document-actions";
 import { type Actor, office, admin } from "@/lib/access";
@@ -34,6 +37,11 @@ export async function EstimatesPage({ a, id }: { a: Actor; id?: string }) {
           <p className="muted">
             Proposals with exact-cent totals and frozen issued versions.
           </p>
+          {a.role !== "TECHNICIAN" && (await aiAvailable(a)) && (
+            <Button asChild variant="outline">
+              <Link href="/estimates/ai">Build with AI</Link>
+            </Button>
+          )}
           {a.role !== "TECHNICIAN" && (
             <Button asChild>
               <Link href="/estimates/new">New estimate</Link>
@@ -61,7 +69,10 @@ export async function EstimatesPage({ a, id }: { a: Actor; id?: string }) {
       </>
     );
   }
-  const isNew = id === "new";
+  const isAI = id === "ai";
+  if (isAI && !(await aiAvailable(a))) throw new HttpError(404, "Not found.");
+  const isNew = id === "new" || isAI;
+  const Builder = isAI ? AIReview : EstimateBuilder;
   if (isNew) office(a);
   const row = isNew ? null : await estimates.readEstimate(a, id);
   const issued = !!row?.document.versions[0]?.issuedAt;
@@ -104,7 +115,7 @@ export async function EstimatesPage({ a, id }: { a: Actor; id?: string }) {
           },
         };
     builder = (
-      <EstimateBuilder
+      <Builder
         key={row?.updatedAt.toISOString() ?? "new"}
         id={row?.id}
         initial={initial}

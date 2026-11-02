@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element -- Private expiring image URLs must not be forwarded to a public image optimizer. */
 "use client";
+import { WritingTool } from "./ai-tools";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "./ui/button";
@@ -224,6 +225,14 @@ export function InspectionEditor({
                       maxLength={10000}
                     />
                   </label>
+                  {canEdit && (
+                    <WritingTool
+                      text={current.observation}
+                      notes={f.title}
+                      resource={{ kind: "inspection", id: row.id }}
+                      onAccept={(text) => update("observation", text)}
+                    />
+                  )}
                   <label>
                     {f.title} recommendation
                     <textarea
@@ -233,6 +242,14 @@ export function InspectionEditor({
                       maxLength={10000}
                     />
                   </label>
+                  {canEdit && (
+                    <WritingTool
+                      text={current.recommendation}
+                      notes={current.observation}
+                      resource={{ kind: "inspection", id: row.id }}
+                      onAccept={(text) => update("recommendation", text)}
+                    />
+                  )}
                 </div>
                 <div className="grid">
                   {f.photos.map((p) => (

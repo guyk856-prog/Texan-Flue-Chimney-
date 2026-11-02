@@ -1,6 +1,6 @@
 # Texan Flue Management System
 
-Phases A–C: team login, customers and properties, jobs, appointments, technician assignments, service catalog, private files, estimate builder, invoices and manual payments, receipts, mobile inspections, customer share/signature flows, immutable document snapshots and branded PDFs. Next.js App Router, TypeScript, Tailwind/shadcn UI, Auth.js, Prisma and PostgreSQL.
+Phases A–D: team login, customers and properties, jobs, appointments, technician assignments, service catalog, private files, estimate builder, invoices and manual payments, receipts, mobile inspections, customer share/signature flows, optional AI extraction with human review, immutable document snapshots and branded PDFs. Next.js App Router, TypeScript, Tailwind/shadcn UI, Auth.js, Prisma and PostgreSQL.
 
 ## Run locally
 
@@ -37,6 +37,18 @@ Estimates are at `/estimates`; ADMIN template editing is at `/settings/templates
 
 Invoices are at `/invoices`, payment receipts at `/receipts`, and mobile inspection workflows at `/inspections`. An approved estimate converts without repricing. Payment records represent money already received elsewhere; they do not collect money. Technicians can draft, sign off and finalize their own assigned inspections. ADMIN can version chimney/dryer checklists at `/settings/checklists`. All four inspection finding statuses print, including NOT INSPECTED. Finalization requires limitations and technician sign-off.
 
+## Optional AI assistance
+
+Manual workflows work with no AI key. To enable AI, configure `ANTHROPIC_API_KEY` on the **server**, restart the app, and enable assistance as ADMIN in Company settings. Supported model: `claude-haiku-4-5-20251001`. Never use a `NEXT_PUBLIC_` variable for credentials. With the key absent or organization setting disabled, AI tools are absent. AI defaults off and the seed preserves that setting.
+
+OFFICE/ADMIN can open **Estimates → Build with AI**. Upload a screenshot, PNG/JPEG/WebP photograph, PDF, or paste Hebrew/English notes. Upload limit: 10 MiB; PDF limit: five unencrypted pages. **Poppler is now a runtime dependency for PDF imports** (`pdfinfo`, `pdftotext`, `pdftoppm`), not just a test dependency. PDF pages use text first; only pages without text are sent as images. Evidence stays private and is linked to the extraction.
+
+The side-by-side review separates quoted source evidence from generated English copy. Unknown prices/quantities remain blank and require an explicit human value. Pick customer/property manually, confirm requested tax/fee removal, review the complete form, then approve creating a **DRAFT**. Nothing is issued, sent, signed or approved by AI. Natural-language edits show a diff and require confirmation; existing drafts still require Save draft afterward. Contextual writing tools preview editable text before accepting it into a field. Cancel aborts the provider call.
+
+AI calls have a 4096-output-token cap, 45-second deadline, per-user limiter and transactionally reserved monthly organization budget. Failed/cancelled calls retain a conservative reservation because the provider may have billed processing already. See [Phase D report](docs/PHASE-D-REPORT.md) for the budget assumptions, tested behavior and live-provider limitations.
+
+The supplied brand files are decoded byte-for-byte under `public/brand/`. New document snapshots include the transparent logo bytes; old issued documents retain their exact original snapshots and PDF bytes. Sidebar uses the supplied dark artwork; login, customer sharing, company settings and password-reset email use the transparent artwork. Browser/manifest icons use the supplied favicon.
+
 ## Screenshots
 
 Desktop dashboard using real DEMO database counts:
@@ -51,6 +63,8 @@ Actual issued acceptance PDF, $4,425.00:
 
 [Pagination page two](docs/screenshots/phase-b-pagination-page-two.png).
 
+Phase D: [side-by-side AI review](docs/screenshots/phase-d-side-by-side-review.png), [sidebar logo](docs/screenshots/phase-d-sidebar-logo.png), and [PDF logo](docs/screenshots/phase-d-pdf-logo.png).
+
 Phase C evidence: [phone inspection form](docs/screenshots/phase-c-inspection-phone.png), [inspection PDF](docs/screenshots/phase-c-inspection-pdf.png), [customer signing screen](docs/screenshots/phase-c-customer-signing.png), and [receipt PDF](docs/screenshots/phase-c-receipt-pdf.png).
 
 ## Checks
@@ -61,6 +75,7 @@ npm run typecheck
 npm test
 npx playwright install chromium
 npm run test:e2e
+npm run test:e2e:ai
 npm run build
 ```
 
@@ -70,7 +85,7 @@ For a machine with a preinstalled Chromium, replace the browser-install step wit
 PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:e2e
 ```
 
-Playwright starts its own development server unless one is already running. Run against the local DEMO database only: the suite creates DEMO records, updates catalog prices on its own DEMO entries and archives its own customer. It does not erase existing data. E2E checks include real browser forms and direct authenticated HTTP requests against PostgreSQL, not mocked authorization. Unit tests run without a database.
+Playwright starts its own development server unless one is already running. Run against the local DEMO database only: the suite creates DEMO records, updates catalog prices on its own DEMO entries and archives its own customer. It does not erase existing data. E2E checks include real browser forms and direct authenticated HTTP requests against PostgreSQL, not mocked authorization. Unit tests run without a database. The separate `test:e2e:ai` suite builds an isolated production server on port 3002 and substitutes a deterministic Anthropic mock through a test-only Node preload. It never calls a live API and never requires a real key. Run the suites sequentially. The default suite includes the real key-absent acceptance check; do not supply an Anthropic key to that suite.
 
 With the app running, `npm run smoke` verifies demo login, a live authenticated dashboard request and logout without printing credentials.
 
@@ -120,6 +135,6 @@ Back up private file storage separately along with the database. Backup/restore 
 
 Use a persistent PostgreSQL service, persistent private upload volume, trusted HTTPS reverse proxy, real SMTP credentials and strong `AUTH_SECRET`. Set `AUTH_URL` to the exact HTTPS origin; never reuse local demo credentials. `AUTH_TRUST_HOST=true` assumes the reverse proxy sanitizes forwarded host headers. Configure an upstream request-size limit and rate limiter before public exposure. Set `TRUST_PROXY=true` only behind a proxy that replaces untrusted forwarding headers; otherwise IP audit details remain unavailable and anonymous requests share a conservative direct-connection bucket. The application limiter is in-process; multiple replicas require shared rate limiting. Do not seed demo accounts into a live customer database. Configure retention/monitoring, review access rules, and test backups before production use.
 
-Phase C adds invoices, manual external-payment records, receipts, inspections and customer signatures. AI remains unimplemented. See [the Phase C report](docs/PHASE-C-REPORT.md) for tested behavior and explicit remaining work; earlier [Phase A](docs/PHASE-A-REPORT.md) and [Phase B](docs/PHASE-B-REPORT.md) reports describe their original scope. Company claims are limited to **Fully Insured**; services focus on wood-burning chimney work and dryer vents.
+Phase C adds invoices, manual external-payment records, receipts, inspections and customer signatures. Optional Anthropic assistance with mandatory human review is implemented in Phase D; live-provider extraction accuracy has not been tested. See [the Phase C report](docs/PHASE-C-REPORT.md) for its tested behavior and limits, and [Phase D](docs/PHASE-D-REPORT.md) for AI and branding; earlier [Phase A](docs/PHASE-A-REPORT.md) and [Phase B](docs/PHASE-B-REPORT.md) reports describe their original scope. Company claims are limited to **Fully Insured**; services focus on wood-burning chimney work and dryer vents.
 
 Design references: [brief](docs/CODEX-BRIEF.md), [decisions](docs/DECISIONS.md), [domain model](prisma/schema.prisma), [master spec](TEXAN_FLUE_CODEX_MASTER_SPEC.md), [PDF contract](docs/PDF-TEMPLATES.md), and [current scope](PHASE-A-PROMPT.txt).

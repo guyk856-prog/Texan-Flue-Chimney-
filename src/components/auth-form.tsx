@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { signIn } from "next-auth/react";
@@ -17,7 +18,12 @@ export function AuthForm({
   const [busy, setBusy] = useState(false);
   return (
     <div className="auth panel">
-      <div className="eyebrow">Texan Flue Chimney</div>
+      <Image
+        src="/brand/logo-mark.webp"
+        width={90}
+        height={106}
+        alt="Texan Flue Chimney Service"
+      />
       <h1>{mode === "login" ? "Welcome back." : "Reset password"}</h1>
       <p className="muted">
         {mode === "login"

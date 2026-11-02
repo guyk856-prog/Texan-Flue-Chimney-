@@ -1,3 +1,4 @@
+import { logoData } from "./brand";
 import { layoutFor } from "./document-layouts";
 import { Prisma, DocumentType } from "@prisma/client";
 import { createHash } from "node:crypto";
@@ -175,7 +176,7 @@ export async function baseSnapshot(
       validUntil: null,
       revisionOf: null,
     },
-    organization: org,
+    organization: { ...org, logoData: await logoData() },
     customer,
     property,
     lines: [],

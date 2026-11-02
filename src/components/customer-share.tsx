@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import { useState } from "react";
 import { EstimateDocument } from "@/pdf/document";
 import type { EstimateSnapshot } from "@/lib/snapshot";
@@ -53,7 +54,13 @@ export function CustomerShare({
   }
   return (
     <main style={{ maxWidth: 1000, margin: "auto" }}>
-      <div className="eyebrow">Texan Flue Chimney · Customer document</div>
+      <Image
+        src="/brand/logo-mark.webp"
+        width={90}
+        height={106}
+        alt="Texan Flue Chimney Service"
+      />
+      <div className="eyebrow">Customer document</div>
       <p>
         Review the exact document version below. No account or login is needed.
       </p>

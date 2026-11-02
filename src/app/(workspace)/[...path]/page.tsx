@@ -1,3 +1,5 @@
+import Image from "next/image";
+import { AIConfiguration } from "@/components/ai-tools";
 import Link from "next/link";
 import { WorkflowPage } from "@/components/workflow-page";
 import { EstimatesPage } from "@/components/estimates-page";
@@ -116,7 +118,14 @@ async function renderPage({
       <>
         <Header title="Company settings" />
         <div className="panel">
+          <Image
+            src="/brand/logo-mark.webp"
+            width={90}
+            height={106}
+            alt="Texan Flue Chimney Service"
+          />
           <h2>{org.name}</h2>
+          <AIConfiguration enabled={org.settings?.aiEnabled ?? false} />
           <Button asChild variant="outline">
             <Link href="/settings/templates">Document templates</Link>
           </Button>

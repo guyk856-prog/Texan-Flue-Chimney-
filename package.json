@@ -15,7 +15,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "setup:env": "node scripts/setup-env.mjs",
     "format": "prettier --write src tests scripts *.ts *.mjs *.json README.md docs/PHASE-A-REPORT.md",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "test:e2e:ai": "playwright test --config playwright.phase-d.config.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

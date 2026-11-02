@@ -1,3 +1,6 @@
+import { readFile, mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { createHash } from "node:crypto";
 import { layoutFor } from "../src/lib/document-layouts";
 import { CHIMNEY_CHECKLIST, DRYER_CHECKLIST } from "../src/lib/checklists";
 import "dotenv/config";
@@ -207,6 +210,39 @@ async function main() {
         role,
         passwordHash,
       },
+    });
+  }
+  if (!org.logoId) {
+    const bytes = await readFile(path.resolve("public/brand/logo-mark.webp"));
+    const storageKey = "texan-brand-mark-v1";
+    const directory = path.resolve(
+      process.env.PRIVATE_STORAGE_DIR ?? "./private/uploads",
+    );
+    if (
+      directory === path.resolve("public") ||
+      directory.startsWith(path.resolve("public") + path.sep)
+    )
+      throw new Error("Storage must be private");
+    await mkdir(directory, { recursive: true, mode: 0o700 });
+    await writeFile(path.join(directory, storageKey), bytes, { mode: 0o600 });
+    const admin = await db.user.findUniqueOrThrow({
+      where: { email: "demo.admin@example.test" },
+    });
+    const asset = await db.fileAsset.upsert({
+      where: { storageKey },
+      update: {},
+      create: {
+        storageKey,
+        filename: "logo-mark.webp",
+        mimeType: "image/webp",
+        sizeBytes: bytes.length,
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+        uploadedById: admin.id,
+      },
+    });
+    await db.organization.update({
+      where: { id: org.id },
+      data: { logoId: asset.id },
     });
   }
   for (const [index, [title, category, scopeSteps]] of entries.entries()) {

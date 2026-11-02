@@ -1,4 +1,5 @@
 "use client";
+import { WritingTool } from "./ai-tools";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "./ui/button";
@@ -23,6 +24,7 @@ export function RecordForm({
   method?: string;
   successPath?: string;
 }) {
+  const [draftText, setDraftText] = useState<Record<string, string>>({});
   const router = useRouter();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -77,44 +79,63 @@ export function RecordForm({
             ? value.join("\n")
             : String(value ?? "");
           return (
-            <label key={f.name}>
-              {f.label}
-              {f.required ? " *" : ""}
-              {f.type === "textarea" || f.type === "list" ? (
-                <textarea
-                  name={f.name}
-                  defaultValue={text}
-                  required={f.required}
-                  maxLength={10000}
-                />
-              ) : f.type === "checkbox" ? (
-                <input
-                  name={f.name}
-                  type="checkbox"
-                  defaultChecked={Boolean(value)}
-                />
-              ) : f.type === "select" ? (
-                <select name={f.name} defaultValue={text} required={f.required}>
-                  <option value="">Select…</option>
-                  {f.options?.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  name={f.name}
-                  type={f.type ?? "text"}
-                  defaultValue={text}
-                  required={f.required}
-                  step={f.type === "number" ? 1 : undefined}
-                  min={f.type === "number" ? 0 : undefined}
-                  max={f.type === "number" ? 2147483647 : undefined}
-                  maxLength={250}
-                />
-              )}
-            </label>
+            <div key={f.name}>
+              <label>
+                {f.label}
+                {f.required ? " *" : ""}
+                {f.type === "textarea" || f.type === "list" ? (
+                  <textarea
+                    name={f.name}
+                    value={draftText[f.name] ?? text}
+                    onChange={(e) =>
+                      setDraftText({ ...draftText, [f.name]: e.target.value })
+                    }
+                    required={f.required}
+                    maxLength={10000}
+                  />
+                ) : f.type === "checkbox" ? (
+                  <input
+                    name={f.name}
+                    type="checkbox"
+                    defaultChecked={Boolean(value)}
+                  />
+                ) : f.type === "select" ? (
+                  <select
+                    name={f.name}
+                    defaultValue={text}
+                    required={f.required}
+                  >
+                    <option value="">Select…</option>
+                    {f.options?.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    name={f.name}
+                    type={f.type ?? "text"}
+                    defaultValue={text}
+                    required={f.required}
+                    step={f.type === "number" ? 1 : undefined}
+                    min={f.type === "number" ? 0 : undefined}
+                    max={f.type === "number" ? 2147483647 : undefined}
+                    maxLength={250}
+                  />
+                )}
+              </label>
+              {f.type === "textarea" &&
+                endpoint.startsWith("/api/data/jobs/") && (
+                  <WritingTool
+                    text={draftText[f.name] ?? text}
+                    resource={{ kind: "job", id: endpoint.split("/").pop()! }}
+                    onAccept={(v) =>
+                      setDraftText({ ...draftText, [f.name]: v })
+                    }
+                  />
+                )}
+            </div>
           );
         })}
       </div>

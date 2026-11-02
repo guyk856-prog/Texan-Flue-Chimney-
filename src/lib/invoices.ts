@@ -1,3 +1,4 @@
+import { logoData } from "./brand";
 import { Prisma, InvoiceStatus } from "@prisma/client";
 import { z } from "zod";
 import { db } from "./db";
@@ -271,6 +272,7 @@ export async function createInvoice(a: Actor, raw: unknown, id?: string) {
         validUntil: null,
         revisionOf: sourceId ? snapshot.document.number : null,
       },
+      organization: { ...snapshot.organization, logoData: await logoData() },
       templateVersionId: t.id,
       template: parseLayout(JSON.parse(t.source)),
       disclaimer: DISCLAIMERS.invoice,

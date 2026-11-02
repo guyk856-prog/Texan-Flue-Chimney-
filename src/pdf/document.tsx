@@ -23,7 +23,16 @@ export function EstimateDocument({
           case "header":
             return (
               <header key={index}>
-                <div className="wordmark">{s.organization.brandName}</div>
+                {s.organization.logoData ? (
+                  <img
+                    src={s.organization.logoData}
+                    width={90}
+                    alt="Texan Flue Chimney Service"
+                    style={{ width: 90, height: "auto" }}
+                  />
+                ) : (
+                  <div className="wordmark">{s.organization.brandName}</div>
+                )}
                 {block.options.showTagline && (
                   <div className="tagline">WHERE CHIMNEYS MEET LUXURY</div>
                 )}

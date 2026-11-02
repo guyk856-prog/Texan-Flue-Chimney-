@@ -25,6 +25,10 @@ export const snapshotSchema = z.object({
     revisionOf: txt.nullable(),
   }),
   organization: z.object({
+    logoData: z
+      .string()
+      .regex(/^data:image\/webp;base64,[A-Za-z0-9+/=]+$/)
+      .optional(),
     name: txt,
     brandName: txt,
     phone: txt,

@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import { newToken } from "./security";
 export async function sendReset(to: string, url: string) {
@@ -7,6 +7,20 @@ export async function sendReset(to: string, url: string) {
     to,
     subject: "Reset your Texan Flue password",
     text: `Use this single-use link within 30 minutes: ${url}`,
+    html: `<img src="cid:texan-logo" width="90" alt="Texan Flue Chimney Service"><p>Use this single-use link within 30 minutes:</p><p><a href="${url.replaceAll("&", "&amp;")}">Reset password</a></p>`,
+    attachments: [
+      {
+        filename: "logo-mark.webp",
+        content: await readFile(
+          path.join(
+            /* turbopackIgnore: true */ process.cwd(),
+            "public/brand/logo-mark.webp",
+          ),
+        ),
+        cid: "texan-logo",
+        contentType: "image/webp",
+      },
+    ],
   };
   if (
     process.env.MAIL_MODE === "capture" &&

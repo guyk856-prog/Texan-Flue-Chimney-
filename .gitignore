@@ -10,3 +10,7 @@ test-results/
 .env.*
 !.env.example
 *.backup
+
+.next-phase-d/
+
+test-results-phase-d/

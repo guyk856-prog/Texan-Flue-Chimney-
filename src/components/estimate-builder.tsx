@@ -1,5 +1,7 @@
 "use client";
-import { useState } from "react";
+import { AIContext, WritingTool } from "./ai-tools";
+import { AIEdit, type Proposed } from "./ai-edit";
+import { useState, useContext } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "./ui/button";
 import { documentTotals, formatCents } from "@/lib/money";
@@ -14,6 +16,7 @@ type Service = {
   price: number | null;
 };
 type EditableLine = {
+  aiExtractionId?: string | null;
   serviceId: string | null;
   title: string;
   description: string;
@@ -26,6 +29,7 @@ type EditableLine = {
 };
 export function EstimateBuilder({
   initial,
+  review,
   id,
   customers,
   properties,
@@ -33,6 +37,13 @@ export function EstimateBuilder({
   services,
   settings,
 }: {
+  review?: {
+    id: string;
+    unknownPrices: number[];
+    unknownQuantities: number[];
+    removeTax: boolean;
+    removeFee: boolean;
+  };
   initial: EstimateInput;
   id?: string;
   customers: { id: string; name: string }[];
@@ -48,13 +59,17 @@ export function EstimateBuilder({
     feeLabel: string;
   };
 }) {
+  const aiEnabled = useContext(AIContext);
   const router = useRouter();
   const [data, setData] = useState(initial);
   const [lines, setLines] = useState<EditableLine[]>(
-    initial.lineItems.map((l) => ({
+    initial.lineItems.map((l, i) => ({
       ...l,
       serviceId: l.serviceId ?? null,
-      unitPriceCents: String(l.unitPriceCents),
+      unitPriceCents: review?.unknownPrices.includes(i)
+        ? ""
+        : String(l.unitPriceCents),
+      quantity: review?.unknownQuantities.includes(i) ? "" : l.quantity,
       discountCents: String(l.discountCents),
     })),
   );
@@ -129,6 +144,45 @@ export function EstimateBuilder({
       },
     });
   }
+
+  function applyProposed(p: Proposed) {
+    setLines(
+      p.lines.map((l, i) => ({
+        ...lines[i],
+        serviceId: lines[i]?.title === l.title ? lines[i].serviceId : null,
+        title: l.title,
+        description: l.description,
+        quantity: l.quantity ?? "",
+        unitPriceCents:
+          l.unitPriceCents === null ? "" : String(l.unitPriceCents),
+        unit: lines[i]?.unit ?? "",
+        discountCents: lines[i]?.discountCents ?? "0",
+        taxable: lines[i]?.taxable ?? false,
+        note: lines[i]?.note ?? "",
+      })),
+    );
+    setData({
+      ...data,
+      preferences: {
+        includeTax: p.includeTax,
+        includeFee: p.includeFee,
+        removalConfirmed:
+          data.preferences.removalConfirmed ||
+          (data.preferences.includeTax && !p.includeTax) ||
+          (data.preferences.includeFee && !p.includeFee),
+      },
+    });
+  }
+  const currentProposal: Proposed = {
+    lines: lines.map((l) => ({
+      title: l.title,
+      description: l.description,
+      quantity: l.quantity || null,
+      unitPriceCents: l.unitPriceCents === "" ? null : Number(l.unitPriceCents),
+    })),
+    includeTax: data.preferences.includeTax,
+    includeFee: data.preferences.includeFee,
+  };
   return (
     <form
       onChange={() => window.dispatchEvent(new Event("estimate-dirty"))}
@@ -139,11 +193,17 @@ export function EstimateBuilder({
         try {
           const input = prepared();
           const response = await fetch(
-            id ? `/api/estimates/${id}` : "/api/estimates",
+            review
+              ? `/api/ai/extractions/${review.id}/accept`
+              : id
+                ? `/api/estimates/${id}`
+                : "/api/estimates",
             {
               method: id ? "PATCH" : "POST",
               headers: { "content-type": "application/json" },
-              body: JSON.stringify(input),
+              body: JSON.stringify(
+                review ? { approved: true, estimate: input } : input,
+              ),
             },
           );
           const result = await response.json();
@@ -159,6 +219,76 @@ export function EstimateBuilder({
         }
       }}
     >
+      {review && (
+        <section className="panel">
+          <h2>Human review required</h2>
+          <p aria-live="polite">
+            <strong>
+              {totals
+                ? `Reviewed total: ${formatCents(totals.totalCents)}`
+                : "Complete missing numeric fields to calculate a total."}
+            </strong>
+          </p>
+          <p className="uncertain">
+            Unknown prices and quantities are blank and required. Choose the
+            existing customer/property explicitly; source details above are
+            never auto-matched.
+          </p>
+          {(review.removeTax || review.removeFee) && (
+            <p>
+              Owner requested removal of {review.removeTax ? "tax " : ""}
+              {review.removeFee ? "service fee" : ""}. Confirm the required
+              notice to apply.
+            </p>
+          )}
+          {(review.removeTax || review.removeFee) && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                if (window.confirm(TAX_CONFIRMATION))
+                  setData({
+                    ...data,
+                    preferences: {
+                      includeTax: !review.removeTax,
+                      includeFee: !review.removeFee,
+                      removalConfirmed: true,
+                    },
+                  });
+              }}
+            >
+              Confirm requested tax / fee removal
+            </Button>
+          )}
+          <label>
+            <input type="checkbox" required />I reviewed the original, completed
+            unknown fields, and approve creating a DRAFT only.
+          </label>
+          <AIEdit
+            id={review.id}
+            current={{
+              lines: lines.map((l) => ({
+                title: l.title,
+                description: l.description,
+                quantity: l.quantity || null,
+                unitPriceCents:
+                  l.unitPriceCents === "" ? null : Number(l.unitPriceCents),
+              })),
+              includeTax: data.preferences.includeTax,
+              includeFee: data.preferences.includeFee,
+            }}
+            onAccept={applyProposed}
+          />
+        </section>
+      )}
+      {!review && id && aiEnabled && (
+        <AIEdit
+          id={id}
+          resource="estimate"
+          current={currentProposal}
+          onAccept={applyProposed}
+        />
+      )}
       <section className="panel">
         <h2>Customer and service property</h2>
         <div className="fields">
@@ -285,6 +415,9 @@ export function EstimateBuilder({
                   <input
                     required
                     inputMode="decimal"
+                    aria-invalid={
+                      review && line.quantity === "" ? true : undefined
+                    }
                     value={line.quantity}
                     onChange={(e) => updateLine(i, "quantity", e.target.value)}
                   />
@@ -305,6 +438,9 @@ export function EstimateBuilder({
                     max="2147483647"
                     step="1"
                     required
+                    aria-invalid={
+                      review && line.unitPriceCents === "" ? true : undefined
+                    }
                     value={line.unitPriceCents}
                     onChange={(e) =>
                       updateLine(i, "unitPriceCents", e.target.value)
@@ -341,6 +477,13 @@ export function EstimateBuilder({
                   onChange={(e) => updateLine(i, "description", e.target.value)}
                 />
               </label>
+              <WritingTool
+                text={line.description}
+                serviceId={line.serviceId}
+                resource={id ? { kind: "estimate", id } : null}
+                notes={line.note}
+                onAccept={(text) => updateLine(i, "description", text)}
+              />
               {service?.companyDefinedTerm && (
                 <div className="success">
                   <strong>
@@ -488,7 +631,11 @@ export function EstimateBuilder({
         </p>
       )}
       <Button disabled={busy || !lines.length || !!moneyError}>
-        {busy ? "Saving…" : "Save draft"}
+        {busy
+          ? "Saving…"
+          : review
+            ? "Approve review & create DRAFT"
+            : "Save draft"}
       </Button>
     </form>
   );

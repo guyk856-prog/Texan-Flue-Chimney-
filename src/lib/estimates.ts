@@ -1,3 +1,4 @@
+import { logoData } from "./brand";
 import { Prisma, EstimateStatus } from "@prisma/client";
 import { z } from "zod";
 import { createHash } from "node:crypto";
@@ -145,7 +146,12 @@ async function related(tx: Tx, a: Actor, data: EstimateInput) {
   )
     throw new HttpError(404, "Job not found.");
 }
-async function lineRows(tx: Tx, a: Actor, data: EstimateInput) {
+async function lineRows(
+  tx: Tx,
+  a: Actor,
+  data: EstimateInput,
+  estimateId?: string,
+) {
   return Promise.all(
     data.lineItems.map(async (line, sortOrder) => {
       const service = line.serviceId
@@ -157,6 +163,14 @@ async function lineRows(tx: Tx, a: Actor, data: EstimateInput) {
             },
           })
         : null;
+      if (
+        line.aiExtractionId &&
+        (!estimateId ||
+          !(await tx.estimateLineItem.findFirst({
+            where: { estimateId, aiExtractionId: line.aiExtractionId },
+          })))
+      )
+        throw new HttpError(400, "Invalid machine provenance.");
       if (line.serviceId && !service)
         throw new HttpError(404, "Service not found.");
       if (service?.companyDefinedTerm && !service.scopeSteps.length)
@@ -209,6 +223,7 @@ function inputFromRow(
     propertyId: row.propertyId,
     jobId: row.jobId,
     lineItems: row.lineItems.map((line) => ({
+      aiExtractionId: line.aiExtractionId,
       serviceId: line.serviceId,
       title: line.title,
       description: line.description ?? "",
@@ -266,7 +281,7 @@ async function buildSnapshot(
       validUntil: row.validUntil?.toISOString() ?? null,
       revisionOf: row.supersedes?.document.number ?? null,
     },
-    organization: org,
+    organization: { ...org, logoData: await logoData() },
     customer: row.customer,
     property: row.property,
     lines: row.lineItems.map((l) => ({
@@ -304,13 +319,19 @@ async function buildSnapshot(
     footerCopy: footer?.type === "footer" ? (footer.options.copy ?? "") : "",
   });
 }
-async function writeDraft(tx: Tx, a: Actor, data: EstimateInput, id?: string) {
+export async function writeDraft(
+  tx: Tx,
+  a: Actor,
+  data: EstimateInput,
+  id?: string,
+  provenanceSourceId?: string,
+) {
   await related(tx, a, data);
   const settings = await tx.organizationSettings.findUniqueOrThrow({
     where: { organizationId: a.organizationId },
   });
   const totals = money(data.lineItems, data, settings);
-  const rows = await lineRows(tx, a, data);
+  const rows = await lineRows(tx, a, data, id ?? provenanceSourceId);
   const { lineItems, preferences, validUntil, ...fields } = data;
   void lineItems;
   let row;
@@ -467,7 +488,13 @@ export async function duplicateEstimate(a: Actor, id: string, revise = false) {
           409,
           "Only a current issued estimate can be revised.",
         );
-      const fresh = await writeDraft(tx, a, inputFromRow(old));
+      const fresh = await writeDraft(
+        tx,
+        a,
+        inputFromRow(old),
+        undefined,
+        old.id,
+      );
       if (revise) {
         await tx.estimate.update({
           where: { id: old.id },

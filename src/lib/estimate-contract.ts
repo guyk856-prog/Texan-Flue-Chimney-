@@ -10,6 +10,7 @@ const id = z
   .max(100);
 export const lineInput = z
   .object({
+    aiExtractionId: id.nullable().optional(),
     serviceId: id.nullable().optional(),
     title: short,
     description: txt.default(""),
